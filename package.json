@@ -1,0 +1,24 @@
+{
+  "name": "online-editor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babel/types": "^7.23.9",
+    "@types/react": "^18.2.47",
+    "@types/react-dom": "^18.2.18",
+    "graphql-tag": "^2.12.6",
+    "konva": "^9.2.0",
+    "monaco-editor": "^0.45.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-konva": "^18.2.10",
+    "react-monaco-editor": "^0.54.0"
+  }
+}
