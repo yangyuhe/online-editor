@@ -1,28 +1,28 @@
+import { loadModule } from "./require.js"
+
+let init;
+export function onReady(cb) {
+    init = cb;
+}
+
 const registerServiceWorker = async () => {
     if ('serviceWorker' in navigator) {
         try {
             const registration = await navigator.serviceWorker.register(
-                '/sw.js'
+                '/sw.js', { type: "module" }
             );
-            if (registration.installing) {
-                console.log(registration.installing)
-                console.log('Service worker installing');
-            } else if (registration.waiting) {
-                console.log(registration.waiting)
-                console.log('Service worker installed');
-            } else if (registration.active) {
-                console.log(registration.active)
-                console.log('Service worker active');
-
-            }
         } catch (error) {
             console.error(`注册serviceworker失败`, error);
         }
     }
 };
+registerServiceWorker()
 
 navigator.serviceWorker.ready.then(registration => {
     registration.active.postMessage({ type: 'clearCache' })
+    setTimeout(() => {
+        init?.()
+    }, 0);
 })
 
 
@@ -42,5 +42,3 @@ navigator.serviceWorker.onmessage = async event => {
 
     }
 }
-
-registerServiceWorker()

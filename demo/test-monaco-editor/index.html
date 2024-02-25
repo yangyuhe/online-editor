@@ -5,66 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="/loader/require.js"></script>
-    <script src="/loader/index.js"></script>
-    <script src="/vendors/unpkg.com_@babel_polyfill@7.6.0_dist_polyfill.min.js"></script>
-    <script src="/vendors/babel.js"></script>
-    <script src="/babel-plugin/cjs2amd.js"></script>
-    <script src="/babel-plugin/removeWebpackApi.js"></script>
-    <script src="/babel-plugin/addPrefix.js"></script>
-    <script src="/babel-plugin/commonAsync.js"></script>
-
-    <script src="/vendors/require2.js"></script>
-    <script src="/vendors/require1.js"></script>
 
     <script>
-        // webpack的一些需要
-        // var process = {
-        //     env: {
-        //         NODE_ENV: 'dev'
-        //     }
-        // }
-    </script>
-
-    <script>
-        // Babel.registerPreset("amd", {
-        //     presets: [
-        //         [Babel.availablePresets["env"], { loose: false, modules: "amd" }],
-        //     ]
-        // });
-        // Babel.registerPreset("amd-plus", {
-        //     presets: [
-        //         [Babel.availablePresets["env"], { loose: false, modules: "amd" }],
-        //         [Babel.availablePresets["react"]],
-        //         [Babel.availablePresets["typescript"], { isTSX: true, allExtensions: true }],
-        //     ]
-        // });
-        // Babel.registerPreset("jsx", {
-        //     presets: [
-        //         [Babel.availablePresets["react"]],
-        //         [Babel.availablePresets["typescript"], { isTSX: true, allExtensions: true }],
-        //     ]
-        // });
-    </script>
-    <script>
-        // require.config({
-        //     waitSeconds: 0,
-        //     baseUrl: "/"
-        // });
-        // window.requirejsErrorOccured = false
-        // require.onError = function (err) {
-        //     console.log("发生错误:")
-        //     console.dir(err)
-        //     window.requirejsErrorOccured = true
-        // }
-        // require(['/loader/common.js!/demo/test-monaco-editor/index.tsx'], (res) => {
-        //     console.log(res)
-        // })
-
-    </script>
-
-    <script type="importmap">
-{
+        const importmap = document.createElement("script")
+        importmap.type = 'importmap'
+        importmap.innerHTML = `
+        {
     "imports":{
         "react-dom/":"/node_modules/react-dom/",
         "react-dom":"/node_modules/react-dom",
@@ -76,34 +22,24 @@
         "monaco-editor/":"/node_modules/monaco-editor/"
     }
     
-}
-</script>
-    <script type="module">
-        window.loadEs = (path) => {
-            return import(path)
-        }
-
-
-        import "./index.tsx"
-        // let code = `
-        // async function hello(){
-        //     const a=await require("a")
-        //     const c=''
-        // }
-        //  hello()
-        // let a= hello()
-        
-        // `
-        // const res = Babel.transform(code, { plugins: ['commonAsync'] })
-        // console.log(res.code)
-
+}`
+        document.head.appendChild(importmap);
     </script>
+    <script type="module">
+        import "/vendors/babel.js"
+        import "/babel-plugin/commonAsync.js"
+        import { onReady } from "/loader/index.js"
+
+        onReady(() => {
+            import("./index.tsx")
+        })
+    </script>
+
 
 </head>
 
 <body>
     <div id="app"></div>
-    <button onclick="load()">load</button>
 </body>
 
 </html>

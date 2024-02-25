@@ -1,7 +1,7 @@
 /**
  * moduleRequired 模块的绝对路径
  */
-async function loadModule(moduleRequired) {
+export async function loadModule(moduleRequired) {
     if (!window[moduleRequired])
 
         window[moduleRequired] = new Promise(async (resolve, reject) => {

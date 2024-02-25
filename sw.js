@@ -20,8 +20,10 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-importScripts("/vendors/babel.js")
-importScripts("/babel-plugin/commonAsync.js")
+import "/vendors/babel.js"
+
+import "/babel-plugin/commonAsync.js"
+
 Babel.registerPreset("jsx", {
     presets: [
         [Babel.availablePresets["react"]],
@@ -136,6 +138,7 @@ async function respond(event) {
                 try {
                     const client = await getClient(event)
                     client.postMessage({ type: 'getmodule', module: request.url })
+
                     let cache = caches.find(item => item.url === request.url)
                     let p;
                     if (!cache) {
@@ -149,7 +152,6 @@ async function respond(event) {
                         cache.p = p;
                     } else
                         p = cache.p;
-
 
                     const keys = await p
 
@@ -180,3 +182,8 @@ async function respond(event) {
         });
     }
 }
+
+
+self.addEventListener("install", evt => {
+    self.skipWaiting()
+})
