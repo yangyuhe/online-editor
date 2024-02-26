@@ -47,9 +47,12 @@ server.on('stream', async (stream, headers) => {
       res = await checkOrigin()
     } else {
       async function checkPackageJson() {
-        const package = await fs.promises.readFile(filename + '/package.json', { encoding: 'utf8' });
-        const main = JSON.parse(package).main
+        const package = JSON.parse(await fs.promises.readFile(filename + '/package.json', { encoding: 'utf8' }));
+        let main = package.browser || package.module || package.main
+        if (package.browser && typeof package.browser === 'string')
+          main = package.browser;
         if (main) {
+          if (!/\.js$/.test(main)) main = main + '.js';
           const mainFile = path.resolve(filename, main);
           const mainFileContent = await fs.promises.readFile(mainFile, { encoding: 'utf8' });
           return { content: mainFileContent, file: getRelative(mainFile) };
@@ -61,7 +64,7 @@ server.on('stream', async (stream, headers) => {
 
       async function checkIndex() {
         const dirs = await fs.promises.readdir(filename, { encoding: 'utf8' });
-        const indexFile = dirs.find(item => /\.(t|j)sx?/.test(path.extname(item)) && !item.endsWith('.d.ts'))
+        const indexFile = dirs.find(item => item.startsWith('index.') && /\.(t|j)sx?$/.test(path.extname(item)) && !item.endsWith('.d.ts'))
         if (indexFile) {
           const indexFilePath = path.resolve(filename, indexFile)
 

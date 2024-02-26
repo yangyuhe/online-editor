@@ -5,50 +5,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="/vendors/unpkg.com_@babel_polyfill@7.6.0_dist_polyfill.min.js"></script>
-    <script src="/vendors/babel.js"></script>
-    <script src="/babel-plugin/cjs2amd.js"></script>
-    <script src="/babel-plugin/removeWebpackApi.js"></script>
-    <script src="/babel-plugin/addPrefix.js"></script>
 
-    <script src="/vendors/require2.js"></script>
-    <script src="/vendors/require1.js"></script>
+    <script src="/__importmap"></script>
+    <script type="module">
 
-    <script>
-        // webpack的一些需要
-        var process = {
-            env: {
-                NODE_ENV: 'dev'
-            }
-        }
-    </script>
+        import "/vendors/babel.js"
+        import "/babel-plugin/commonAsync.js"
+        import { onReady } from "/loader/index.js"
 
-    <script>
 
-        Babel.registerPreset("env-plus", {
-            presets: [
-                [Babel.availablePresets["env"], { loose: false, modules: "amd" }],
-                [Babel.availablePresets["react"]],
-                [Babel.availablePresets["typescript"], { isTSX: true, allExtensions: true }],
-            ]
-        });
-    </script>
-    <script>
-        require.config({
-            waitSeconds: 0,
-            baseUrl: "/"
-        });
-        window.requirejsErrorOccured = false
-        require.onError = function (err) {
-            console.log("发生错误:")
-            console.dir(err)
-            window.requirejsErrorOccured = true
-        }
-        require(['/loader/common.js!/demo/test-konva/index.tsx'], (res) => {
-            console.log(res)
+        onReady(async () => {
+            import("./index.tsx")
         })
-
     </script>
+
 
 </head>
 

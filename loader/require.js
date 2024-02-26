@@ -2,20 +2,22 @@
  * moduleRequired 模块的绝对路径
  */
 export async function loadModule(moduleRequired) {
-    if (!window[moduleRequired])
+    const requiredModule = moduleRequired.endsWith(".js") ? moduleRequired : (moduleRequired + '.js')
+    if (!window[requiredModule]) {
 
-        window[moduleRequired] = new Promise(async (resolve, reject) => {
+        window[requiredModule] = new Promise(async (resolve, reject) => {
             try {
-                if (/\.(j|t)sx$/.test(moduleRequired)) {
-                    const res = await loadEs(moduleRequired)
+
+                if (/\.(j|t)sx$/.test(requiredModule)) {
+                    const res = await loadEs(requiredModule)
                     resolve(res);
                     return;
                 }
-                const res = await fetch(moduleRequired + '?content')
+                const res = await fetch(requiredModule + '?content')
                 if (res.status !== 404) {
                     const text = await res.text()
                     if (isEs6(text)) {
-                        const res = await loadEs(moduleRequired)
+                        const res = await loadEs(requiredModule)
                         resolve(res);
                         return
                     } else {
@@ -34,7 +36,7 @@ export async function loadModule(moduleRequired) {
                             }
                             if (module.startsWith('./') || module.startsWith('../')) {
                                 const paths = module.split("/")
-                                const desPaths = moduleRequired.split("/")
+                                const desPaths = requiredModule.split("/")
                                 desPaths.pop()
                                 while (true) {
                                     let cur = paths.shift()
@@ -63,14 +65,23 @@ export async function loadModule(moduleRequired) {
                         return;
                     }
                 } else {
-                    reject(new Error("not found " + moduleRequired))
+                    reject(new Error("not found " + requiredModule))
                 }
 
             } catch (err) {
                 reject(err);
             }
         })
-    return window[moduleRequired]
+        let finish = false;
+        window[requiredModule].finally(() => {
+            finish = true;
+        })
+        setTimeout(() => {
+            if (!finish)
+                console.error(`模块${requiredModule}加载超时`)
+        }, 10000);
+    }
+    return window[requiredModule]
 }
 
 function isEs6(text) {
