@@ -97,59 +97,15 @@ server.on('stream', async (stream, headers) => {
     stream.end(JSON.stringify({ code: 0, data: res }));
     return;
   }
-  if (pathname.startsWith('/api/isdir/')) {
-    const filePath = pathname.substr('/api/isdir/'.length);
-    const fullPath = path.resolve(root, filePath);
+  if (pathname === '/api/importmap') {
     stream.respond(okHeaders);
-    try {
-      const stats = await fs.promises.stat(fullPath);
-      if (stats.isDirectory()) {
-        stream.end(JSON.stringify({ code: 0, data: true }));
-      } else {
-        stream.end(JSON.stringify({ code: 0, data: false }));
-      }
-    } catch (err) {
-      console.error(err);
-      stream.end(JSON.stringify({ code: 1, msg: 'not found' }));
-    }
-    return;
-  }
-  if (pathname.startsWith('/api/isfile/')) {
-    const filePath = pathname.substr('/api/isfile/'.length);
-    const fullPath = path.resolve(root, filePath);
-    stream.respond(okHeaders);
-    try {
-      const stats = await fs.promises.stat(fullPath);
-      if (stats.isFile()) {
-        stream.end(JSON.stringify({ code: 0, data: true }));
-      } else {
-        stream.end(JSON.stringify({ code: 0, data: false }));
-      }
-    } catch (err) {
-      console.error(err);
-      stream.end(JSON.stringify({ code: 1, msg: 'not found' }));
-    }
-
-    return;
-  }
-  if (pathname.startsWith('/api/')) {
-    const filePath = pathname.substr(5);
-    const fullPath = path.resolve(root, filePath);
-    stream.respond(okHeaders);
-    try {
-      const stats = await fs.promises.stat(fullPath);
-      if (stats.isDirectory()) {
-        const dirs = await fs.promises.readdir(fullPath, { encoding: 'utf8' });
-        stream.end(JSON.stringify({ code: 0, data: dirs }));
-      } else {
-        const content = await fs.promises.readFile(fullPath, { encoding: 'utf8' });
-        stream.end(JSON.stringify({ code: 0, data: content }));
-      }
-    } catch (err) {
-      console.error(err);
-      stream.end(JSON.stringify({ code: 1, msg: 'not found' }));
-    }
-
+    const dirs = await fs.promises.readdir(path.resolve(__dirname, "../node_modules"), { encoding: 'utf8' });
+    const importmaps = {}
+    dirs.forEach(dir => {
+      importmaps[dir] = "/node_modules/" + dir;
+      importmaps[dir + '/'] = "/node_modules/" + dir + "/";
+    })
+    stream.end(JSON.stringify({ code: 0, data: importmaps }));
     return;
   }
 

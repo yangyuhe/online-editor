@@ -1,3 +1,7 @@
+import "/vendors/babel.js"
+import "/babel-plugin/commonAsync.js"
+import { handleImportmap } from "./loader/importmap.js";
+
 
 async function getClient(event) {
     const clientId =
@@ -20,9 +24,7 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-import "/vendors/babel.js"
 
-import "/babel-plugin/commonAsync.js"
 
 Babel.registerPreset("jsx", {
     presets: [
@@ -71,8 +73,11 @@ async function respond(event) {
             const real = request.url.slice(0, -"?content".length)
             return fetch(real)
         }
-        if (request.url.includes("/api/file")) {
+        if (request.url.includes("/api/")) {
             return fetch(request)
+        }
+        if (request.url.includes("/__importmap")) {
+            return handleImportmap()
         }
         if (!/\.(jsx?|tsx?|css|html)$/.test(url.pathname)) {
             const response = await fetch(`/api/file?module=${url.pathname}`)

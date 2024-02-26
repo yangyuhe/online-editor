@@ -6,31 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
 
-    <script>
-        const importmap = document.createElement("script")
-        importmap.type = 'importmap'
-        importmap.innerHTML = `
-        {
-    "imports":{
-        "react-dom/":"/node_modules/react-dom/",
-        "react-dom":"/node_modules/react-dom",
-        "react/":"/node_modules/react/",
-        "react":"/node_modules/react",
-        "react-monaco-editor":"/node_modules/react-monaco-editor",
-        "react-monaco-editor/":"/node_modules/react-monaco-editor/",
-        "monaco-editor":"/node_modules/monaco-editor",
-        "monaco-editor/":"/node_modules/monaco-editor/"
-    }
-    
-}`
-        document.head.appendChild(importmap);
-    </script>
+    <script src="/__importmap"></script>
     <script type="module">
+
         import "/vendors/babel.js"
         import "/babel-plugin/commonAsync.js"
         import { onReady } from "/loader/index.js"
 
-        onReady(() => {
+
+        onReady(async () => {
             import("./index.tsx")
         })
     </script>
