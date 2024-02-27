@@ -31,6 +31,19 @@ navigator.serviceWorker.onmessage = async event => {
         }
 
     }
+    if (data.type === 'isexist') {
+        console.log('request.url-client:', data.module)
+        if (window[data.module]) {
+            try {
+                const moduleExports = await window[data.module]
+                registration.active.postMessage({ type: 'isexist', module: data.module, code: 0, data: Object.keys(moduleExports) })
+            } catch (err) {
+                registration.active.postMessage({ type: 'isexist', module: data.module, code: 2, error: new Error("no exist " + data.module) })
+            }
+        } else {
+            registration.active.postMessage({ type: 'isexist', module: data.module, code: 1, error: new Error("no exist " + data.module) })
+        }
+    }
 }
 
 let onReadyResolve;

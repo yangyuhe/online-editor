@@ -16,6 +16,14 @@ function injectWindow(code, moduleName) {
     });`
 }
 
+function generateEsm(url, keys) {
+    const text = `const  res=await window['${url}'];
+                    export default res;
+                    ${keys.map(key => `export const ${key}=res['${key}']`).join('\n')}
+                    `
+    return text;
+}
+
 self.addEventListener('fetch', (event) => {
     console.log('record:', event.request.url)
     event.respondWith(
@@ -46,6 +54,23 @@ function isCommonjs(text) {
 }
 
 
+let isexistPromises = []
+async function findExisting(event, module) {
+    const client = await getClient(event)
+    const exist = isexistPromises.find(item => item.module === module)
+    if (exist)
+        return exist.p;
+    client.postMessage({ type: 'isexist', module: module })
+    let item = { module }
+    item.p = new Promise((resolve, reject) => {
+        item.resolve = resolve
+        item.reject = reject
+        isexistPromises.push(item)
+    })
+    return item.p
+}
+
+
 
 let caches = []
 
@@ -61,6 +86,14 @@ addEventListener("message", evt => {
 
     if (data.type === 'clearCache') {
         caches = []
+        isexistPromises = []
+    }
+    if (data.type === 'isexist') {
+        const p = isexistPromises.find(item => data.module === item.module);
+        if (data.code === 0)
+            p.resolve(data.data);
+        else
+            p.reject(new Error('no existing ' + data.module))
     }
 })
 
@@ -72,7 +105,7 @@ async function respond(event) {
             const real = request.url.slice(0, -"?content".length)
             return fetch(real)
         }
-        if (request.url.includes("/api/")) {
+        if (request.url.includes("/api/") || request.url.endsWith(".html")) {
             return fetch(request)
         }
         if (!/\.(jsx?|tsx?|css|html)$/.test(url.pathname)) {
@@ -94,6 +127,22 @@ async function respond(event) {
                     "Location": res.data.file
                 }
             })
+        }
+
+        if (request.url.includes("/node_modules/")) {
+            try {
+                console.log("request.url:", request.url)
+                const keys = await findExisting(event, request.url)
+                const text = generateEsm(request.url, keys)
+                return new Response(text, {
+                    status: 200,
+                    headers: {
+                        'Content-Type': 'text/javascript'
+                    }
+                })
+            } catch (err) {
+                console.log("request.url-server:", err)
+            }
         }
 
 
@@ -156,10 +205,7 @@ async function respond(event) {
 
                     const keys = await p
 
-                    const text = `const  res=await window['${request.url}'];
-                    export default res;
-                    ${keys.map(key => `export const ${key}=res['${key}']`).join('\n')}
-                    `
+                    const text = generateEsm(request.url, keys);
                     return new Response(text, {
                         status: 200,
                         headers: { 'Content-Type': 'text/javascript' },
