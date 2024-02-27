@@ -6,18 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
 
-    <script src="/__importmap"></script>
-    <script type="module">
-
-        import "/vendors/babel.js"
-        import "/babel-plugin/commonAsync.js"
-        import { onReady } from "/loader/index.js"
-
-
-        onReady(async () => {
-            import("./index.tsx")
-        })
-    </script>
+    <%= importmap %>
+        <script type="module">
+            import { onReady } from "/loader/index.js"
+            onReady.then(() => import("./index.tsx"))
+        </script>
 
 
 </head>

@@ -1,6 +1,5 @@
 import "/vendors/babel.js"
 import "/babel-plugin/commonAsync.js"
-import { handleImportmap } from "./loader/importmap.js";
 
 
 async function getClient(event) {
@@ -75,9 +74,6 @@ async function respond(event) {
         }
         if (request.url.includes("/api/")) {
             return fetch(request)
-        }
-        if (request.url.includes("/__importmap")) {
-            return handleImportmap()
         }
         if (!/\.(jsx?|tsx?|css|html)$/.test(url.pathname)) {
             const response = await fetch(`/api/file?module=${url.pathname}`)
@@ -192,3 +188,6 @@ async function respond(event) {
 self.addEventListener("install", evt => {
     self.skipWaiting()
 })
+self.addEventListener("activate", (event) => {
+    event.waitUntil(clients.claim());
+});

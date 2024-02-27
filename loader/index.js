@@ -1,10 +1,9 @@
+import "/vendors/babel.js"
+import "/babel-plugin/commonAsync.js"
+import "./global-variables.js"
 import { loadModule } from "./require.js"
 
-let init;
-export function onReady(cb) {
-    init = cb;
-}
-
+//注册serviceworker
 const registerServiceWorker = async () => {
     if ('serviceWorker' in navigator) {
         try {
@@ -16,15 +15,6 @@ const registerServiceWorker = async () => {
         }
     }
 };
-registerServiceWorker()
-
-navigator.serviceWorker.ready.then(registration => {
-    registration.active.postMessage({ type: 'clearCache' })
-    setTimeout(() => {
-        init?.()
-    }, 0);
-})
-
 
 
 navigator.serviceWorker.onmessage = async event => {
@@ -41,4 +31,20 @@ navigator.serviceWorker.onmessage = async event => {
         }
 
     }
+}
+
+let onReadyResolve;
+export const onReady = new Promise((resolve, reject) => {
+    onReadyResolve = resolve;
+})
+
+
+registerServiceWorker();
+navigator.serviceWorker.ready.then(registration => {
+    registration.active.postMessage({ type: 'clearCache' })
+    if (navigator.serviceWorker.controller)
+        onReadyResolve()
+})
+navigator.serviceWorker.oncontrollerchange = evt => {
+    onReadyResolve()
 }

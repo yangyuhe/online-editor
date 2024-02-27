@@ -100,17 +100,6 @@ server.on('stream', async (stream, headers) => {
     stream.end(JSON.stringify({ code: 0, data: res }));
     return;
   }
-  if (pathname === '/api/importmap') {
-    stream.respond(okHeaders);
-    const dirs = await fs.promises.readdir(path.resolve(__dirname, "../node_modules"), { encoding: 'utf8' });
-    const importmaps = {}
-    dirs.forEach(dir => {
-      importmaps[dir] = "/node_modules/" + dir;
-      importmaps[dir + '/'] = "/node_modules/" + dir + "/";
-    })
-    stream.end(JSON.stringify({ code: 0, data: importmaps }));
-    return;
-  }
 
   const fullPath = path.resolve(root, pathname.slice(1));
 
@@ -135,7 +124,18 @@ server.on('stream', async (stream, headers) => {
           'content-type': 'text/css'
         });
       }
-      const content = await fs.promises.readFile(fullPath, { encoding: 'utf8' });
+      let content = await fs.promises.readFile(fullPath, { encoding: 'utf8' });
+      if (ext === '.html' && content.includes('<%= importmap %>')) {
+        const dirs = await fs.promises.readdir(path.resolve(__dirname, "../node_modules"), { encoding: 'utf8' });
+        const importmaps = {}
+        dirs.forEach(dir => {
+          importmaps[dir] = "/node_modules/" + dir;
+          importmaps[dir + '/'] = "/node_modules/" + dir + "/";
+        })
+        content = content.replace('<%= importmap %>', `<script type="importmap">{
+      "imports":${JSON.stringify(importmaps)}
+      }</script>`)
+      }
       stream.end(content);
     }
   } catch (err) {

@@ -23,13 +23,9 @@ export async function loadModule(moduleRequired) {
                     } else {
                         const code = (Babel.transform(text, { plugins: ['commonAsync'] })).code;
                         const AsyncFunction = (async () => { }).constructor
-                        const fn = new AsyncFunction('module', 'exports', 'require', 'process', code)
+                        const fn = new AsyncFunction('module', 'exports', 'require', code)
                         const module = { exports: {} }
-                        const process = {
-                            env: {
-                                NODE_ENV: 'development'
-                            }
-                        }
+
                         await fn(module, module.exports, async (module) => {
                             if (module.startsWith('/')) {
                                 return loadModule(module)
@@ -60,7 +56,7 @@ export async function loadModule(moduleRequired) {
                             else
                                 throw new Error("没有找到依赖的子模块" + module)
 
-                        }, process);
+                        });
                         resolve(module.exports);
                         return;
                     }
