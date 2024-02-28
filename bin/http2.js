@@ -5,8 +5,8 @@ const fs = require('fs');
 const path = require('path');
 
 const server = http2.createSecureServer({
-  key: fs.readFileSync(path.resolve(__dirname, './localhost-privkey.pem')),
-  cert: fs.readFileSync(path.resolve(__dirname, './localhost-cert.pem')),
+  key: fs.readFileSync(path.resolve(__dirname, './key.pem')),
+  cert: fs.readFileSync(path.resolve(__dirname, './cert.pem')),
 });
 
 const root = path.resolve(__dirname, '../');
@@ -20,23 +20,24 @@ server.on('stream', async (stream, headers) => {
     ':status': 200,
     'Cache-Control': pathname.split('/').includes('node_modules') ? `max-age=1000000000` : undefined
   }
+
+  //这个接口用于提供对模块的绝对路径的解析
   if (pathname.startsWith('/api/file?')) {
     let filename = pathname.substr('/api/file?'.length).split("=")[1]
     if (!filename.startsWith("/"))
       filename = '/node_modules/' + filename
 
     if (filename.startsWith("/")) filename = filename.substr(1)
+    filename = path.resolve(__dirname, '..', filename);
 
     const rootDir = path.resolve(__dirname, "..")
     const getRelative = (p) => '/' + path.relative(rootDir, p)
-    filename = path.resolve(__dirname, '..', filename);
 
-    async function checkOrigin() {
+    /**检查是否存在对应路径的文件 */
+    async function checkAbsolute() {
       try {
-
         const content = await fs.promises.readFile(filename, { encoding: 'utf8' });
         return { content, file: getRelative(filename) };
-
       } catch (err) {
         console.error(err)
         return null;
@@ -44,9 +45,10 @@ server.on('stream', async (stream, headers) => {
     }
     let res;
     if (/(\.(tsx?|jsx?|css))/.test(path.extname(filename))) {
-      res = await checkOrigin()
+      res = await checkAbsolute()
     } else {
-      async function checkPackageJson() {
+      /**检查是否存在对应的包 */
+      async function checkPackage() {
         const package = JSON.parse(await fs.promises.readFile(filename + '/package.json', { encoding: 'utf8' }));
         let main = package.browser || package.module || package.main
         if (package.browser && typeof package.browser === 'string')
@@ -62,6 +64,7 @@ server.on('stream', async (stream, headers) => {
 
       }
 
+      /**检查是否省略的index文件 */
       async function checkIndex() {
         const dirs = await fs.promises.readdir(filename, { encoding: 'utf8' });
         const indexFile = dirs.find(item => item.startsWith('index.') && /\.(t|j)sx?$/.test(path.extname(item)) && !item.endsWith('.d.ts'))
@@ -73,9 +76,9 @@ server.on('stream', async (stream, headers) => {
         } else {
           throw new Error('next')
         }
-
       }
 
+      /**检查是否存在省略了扩展名的情况 */
       async function checkSelf() {
         const parentDir = path.dirname(filename)
         const fileName = filename.substr(parentDir.length + 1)
@@ -91,7 +94,7 @@ server.on('stream', async (stream, headers) => {
         }
       }
 
-      res = await checkPackageJson().catch(checkIndex).catch(checkSelf).catch(err => {
+      res = await checkPackage().catch(checkIndex).catch(checkSelf).catch(err => {
         console.error(err)
         return null;
       })
@@ -151,10 +154,3 @@ server.on('stream', async (stream, headers) => {
 server.listen(8443, () => {
   console.log("listening at 8443")
 });
-
-// const http=require("http")
-// const server=http.createServer((req,res)=>{
-//   res.write("hello")
-//   res.end()
-// })
-// server.listen(8443)

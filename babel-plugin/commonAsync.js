@@ -1,3 +1,9 @@
+/**
+ * 用于将commonjs模块的同步的require方法转化为异步的require
+ * 例如const lodash=require('lodash') => const lodash=await require('lodash')
+ */
+
+
 function replaceParent(path, t) {
     const fnParent = path.getFunctionParent()
     if (fnParent && !fnParent.node.async) {
