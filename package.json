@@ -1,9 +1,10 @@
 {
   "name": "online-editor",
   "version": "1.0.0",
-  "description": "",
+  "description": "A modern browser based client-build first web development solution",
   "main": "index.js",
   "scripts": {
+    "serve": "node ./bin/http2.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -20,5 +21,8 @@
     "react-dom": "^18.2.0",
     "react-konva": "^18.2.10",
     "react-monaco-editor": "^0.54.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
   }
 }
