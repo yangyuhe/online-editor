@@ -21,5 +21,8 @@
     "react-dom": "^18.2.0",
     "react-konva": "^18.2.10",
     "react-monaco-editor": "^0.54.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
   }
 }
