@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "serve": "node ./bin/http2.js",
+    "prepare": "husky",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -23,6 +24,21 @@
     "react-monaco-editor": "^0.54.0"
   },
   "devDependencies": {
+    "browserslist": "^4.23.0",
+    "commitizen": "^4.3.0",
+    "cz-conventional-changelog": "^3.3.0",
+    "husky": "^9.0.11",
     "prettier": "^3.2.5"
+  },
+  "browserslist": {
+    "production": "Edge >= 120, Firefox >= 115, Chrome >= 109, Safari >= 16.6, Opera >= 105",
+    "development": [
+      "defaults and fully supports es6-module"
+    ]
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
   }
 }
