@@ -1,10 +1,33 @@
+import { insertNode } from './dependency-tree.js';
+
+let parentCaches = ['/node_modules/monaco-editor'];
+
+window._window = new Proxy(
+  {},
+  {
+    get(target, property) {
+      return window.opener?.[property] || window[property];
+    },
+    set(target, property, val) {
+      if (parentCaches.some((item) => property.includes(item))) {
+        if (window.opener) window.opener[property] = val;
+        else window[property] = val;
+      } else window[property] = val;
+      return true;
+    }
+  }
+);
+
 /**
  * moduleRequired 模块的绝对路径
  */
-export async function loadModule(moduleRequired) {
+export async function loadModule(moduleRequired, parent = null) {
+  if (parent) {
+    insertNode(parent, moduleRequired);
+  }
   const requiredModule = moduleRequired.endsWith('.js') ? moduleRequired : moduleRequired + '.js';
-  if (!window[requiredModule]) {
-    window[requiredModule] = new Promise(async (resolve, reject) => {
+  if (!_window[requiredModule]) {
+    _window[requiredModule] = new Promise(async (resolve, reject) => {
       try {
         if (/\.(j|t)sx$/.test(requiredModule)) {
           const res = await loadEs(requiredModule);
@@ -26,7 +49,7 @@ export async function loadModule(moduleRequired) {
 
             await fn(module, module.exports, async (module) => {
               if (module.startsWith('/')) {
-                return loadModule(module);
+                return loadModule(module, moduleRequired);
               }
               if (module.startsWith('./') || module.startsWith('../')) {
                 const paths = module.split('/');
@@ -45,11 +68,11 @@ export async function loadModule(moduleRequired) {
                   desPaths.push(cur);
                 }
 
-                return loadModule(desPaths.join('/'));
+                return loadModule(desPaths.join('/'), moduleRequired);
               }
               const res = await fetch('/api/file?module=' + module);
               const json = await res.json();
-              if (json.data) return loadModule(location.origin + json.data.file);
+              if (json.data) return loadModule(location.origin + json.data.file, moduleRequired);
               else throw new Error('没有找到依赖的子模块' + module);
             });
             resolve(module.exports);
@@ -63,14 +86,14 @@ export async function loadModule(moduleRequired) {
       }
     });
     let finish = false;
-    window[requiredModule].finally(() => {
+    _window[requiredModule].finally(() => {
       finish = true;
     });
     setTimeout(() => {
       if (!finish) console.error(`模块${requiredModule}加载超时`);
     }, 10000);
   }
-  return window[requiredModule];
+  return _window[requiredModule];
 }
 
 function isEs6(text) {

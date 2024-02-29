@@ -1,18 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
 
     <%= importmap %>
-    <script type="module">
-      import { onReady } from '/loader/index.js';
-      onReady.then(() => import('./index.tsx'));
-    </script>
-  </head>
+        <script type="module">
+            import { onReady } from '/loader/index.js';
+            onReady.then(() => {
+                import('./index.tsx').then(res => res.render())
+            }).catch(err => {
+                debugger
+            });
 
-  <body>
+
+            const ws = new WebSocket('ws://localhost:8442');
+        </script>
+</head>
+
+<body>
+    <button id="reload">reload</button>
+    <script type="module">
+        document.getElementById("reload").addEventListener("click", evt => {
+            import("./index.tsx?query=" + Date.now()).then(res => {
+                res.render()
+            })
+        })
+    </script>
     <div id="app"></div>
-  </body>
+</body>
+
 </html>

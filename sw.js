@@ -1,24 +1,33 @@
 import '/vendors/babel.js';
 import '/babel-plugin/commonAsync.js';
+import '/babel-plugin/es6ImportHash.js';
 
 async function getClient(event) {
   const clientId = event.resultingClientId !== '' ? event.resultingClientId : event.clientId;
-  const client = await self.clients.get(clientId);
-  return client;
+  try {
+    const clientList = await self.clients.matchAll();
+    const client = clientList.find((client) => client.id === clientId);
+    return client;
+  } catch (err) {
+    console.log(err);
+  }
 }
 function injectWindow(code, moduleName) {
   return (
     code +
     `\nimport('${moduleName}').then(res=>{
-        window['${moduleName}']=res;
+        _window['${moduleName}']=res;
     });`
   );
 }
 
 function generateEsm(url, keys) {
-  const text = `const  res=await window['${url}'];
-                    export default res;
-                    ${keys.map((key) => `export const ${key}=res['${key}']`).join('\n')}
+  const text = `const  res=await _window['${url}'];
+                    ${keys.includes('default') ? 'export default res.default;' : 'export default res;'}
+                    ${keys
+                      .filter((key) => key !== 'default')
+                      .map((key) => `export const ${key}=res['${key}']`)
+                      .join('\n')}
                     `;
   return text;
 }
@@ -88,13 +97,24 @@ addEventListener('message', (evt) => {
 
 async function respond(event) {
   const { request } = event;
+
+  const client = await getClient(event);
+  if (client) {
+    client.postMessage({ type: 'dependency', parent: request.referrer, child: request.url });
+  }
+
   try {
     let url = new URL(request.url);
     if (request.url.includes('?content')) {
       const real = request.url.slice(0, -'?content'.length);
       return fetch(real);
     }
-    if (request.url.includes('/api/') || request.url.endsWith('.html')) {
+    if (
+      url.pathname.startsWith('/api/') ||
+      url.pathname.endsWith('.html') ||
+      url.pathname === '/' ||
+      url.pathname.startsWith('/index')
+    ) {
       return fetch(request);
     }
     if (!/\.(jsx?|tsx?|css|html)$/.test(url.pathname)) {
@@ -113,14 +133,13 @@ async function respond(event) {
         status: 302,
         headers: {
           'Content-Type': 'text/javascript',
-          Location: res.data.file
+          Location: res.data.file + url.search
         }
       });
     }
 
-    if (request.url.includes('/node_modules/')) {
+    if (url.pathname.includes('monaco-editor') && url.pathname.includes('/node_modules')) {
       try {
-        console.log('request.url:', request.url);
         const keys = await findExisting(event, request.url);
         const text = generateEsm(request.url, keys);
         return new Response(text, {
@@ -134,11 +153,11 @@ async function respond(event) {
       }
     }
 
-    if (request.url.endsWith('.css')) {
+    if (url.pathname.endsWith('.css')) {
       const transformed = `
             const link = document.createElement('link');
             link.rel = 'stylesheet';
-            link.href = '${request.url}?content';
+            link.href = '${url.pathname}?content';
             document.head.append(link);
             `;
       return new Response(transformed, {
@@ -155,23 +174,45 @@ async function respond(event) {
     const ises6 = isEs6(text);
     const iscommonjs = isCommonjs(text);
 
-    if (/\.(j|t)sx$/.test(request.url)) {
-      let res = Babel.transform(text, { presets: ['jsx'] });
+    if (/\.(j|t)sx$/.test(url.pathname)) {
+      let code = '';
+      if (!url.pathname.includes('/node_modules')) {
+        let res = Babel.transform(text, {
+          presets: ['jsx'],
+          plugins: url.search ? [['es6ImportHash', { query: url.search }]] : []
+        });
+        code = res.code;
+      } else {
+        let res = Babel.transform(text, {
+          presets: ['jsx']
+        });
+        code = res.code;
+      }
 
-      let resCode = injectWindow(res.code, request.url);
+      let resCode = injectWindow(code, request.url);
       return new Response(resCode, {
         status: 200,
         headers: { 'Content-Type': 'text/javascript' }
       });
     }
-    if (/\.(j|t)s$/.test(request.url)) {
+    if (/\.(j|t)s$/.test(url.pathname)) {
       if (ises6) {
-        let resCode = injectWindow(text, request.url);
+        let code = '';
+        if (!url.pathname.includes('/node_modules')) {
+          let res = Babel.transform(text, {
+            plugins: url.search ? [['es6ImportHash', { query: url.search }]] : []
+          });
+          code = res.code;
+        } else {
+          code = text;
+        }
+
+        let resCode = injectWindow(code, request.url);
         return new Response(resCode, {
           status: 200,
           headers: { 'Content-Type': 'text/javascript' }
         });
-      } else if (iscommonjs && request.url.includes('node_modules')) {
+      } else if (iscommonjs && url.pathname.includes('node_modules')) {
         try {
           const client = await getClient(event);
           client.postMessage({ type: 'getmodule', module: request.url });

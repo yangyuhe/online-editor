@@ -1,7 +1,9 @@
 import '/vendors/babel.js';
 import '/babel-plugin/commonAsync.js';
+import '/babel-plugin/es6ImportHash.js';
 import './global-variables.js';
 import { loadModule } from './require.js';
+import { insertNode } from './dependency-tree.js';
 
 //注册serviceworker
 const registerServiceWorker = async () => {
@@ -21,7 +23,7 @@ navigator.serviceWorker.onmessage = async (event) => {
     try {
       await loadModule(data.module);
 
-      const moduleExports = await window[data.module];
+      const moduleExports = await _window[data.module];
       registration.active.postMessage({
         type: 'getmodule',
         module: data.module,
@@ -38,10 +40,9 @@ navigator.serviceWorker.onmessage = async (event) => {
     }
   }
   if (data.type === 'isexist') {
-    console.log('request.url-client:', data.module);
-    if (window[data.module]) {
+    if (_window[data.module]) {
       try {
-        const moduleExports = await window[data.module];
+        const moduleExports = await _window[data.module];
         registration.active.postMessage({
           type: 'isexist',
           module: data.module,
@@ -64,6 +65,10 @@ navigator.serviceWorker.onmessage = async (event) => {
         error: new Error('no exist ' + data.module)
       });
     }
+  }
+  if (data.type === 'dependency') {
+    const { parent, child } = data;
+    insertNode(parent, child);
   }
 };
 

@@ -3,11 +3,14 @@
 const http2 = require('http2');
 const fs = require('fs');
 const path = require('path');
+const { startWS } = require('./ws');
 
 const server = http2.createSecureServer({
   key: fs.readFileSync(path.resolve(__dirname, './key.pem')),
   cert: fs.readFileSync(path.resolve(__dirname, './cert.pem'))
 });
+
+startWS();
 
 const root = path.resolve(__dirname, '../');
 
@@ -113,9 +116,32 @@ server.on('stream', async (stream, headers) => {
     return;
   }
 
-  const fullPath = path.resolve(root, pathname.slice(1));
+  //返回入口文件
+  if (pathname === '/' || pathname.startsWith('/index')) {
+    const text = await fs.promises.readFile(path.resolve(__dirname, 'index.html'), {
+      encoding: 'utf8'
+    });
+    const dirs = await fs.promises.readdir(path.resolve(__dirname, '../demo'));
+    const apps = dirs
+      .map(
+        (dir) =>
+          `<a href="" onclick="openTab(event,\'${`https://localhost:8443/demo/${dir}/index.html`}\')">${dir}</a>`
+      )
+      .join('<br/>');
+    const html = text.replace('${apps}', apps);
+    stream.respond({
+      ...okHeaders,
+      'content-type': 'text/html'
+    });
+    stream.end(html);
+    return;
+  }
+
+  let fullPath = path.resolve(root, pathname.slice(1));
 
   try {
+    let index = fullPath.indexOf('?query');
+    if (index !== -1) fullPath = fullPath.slice(0, index);
     const stats = await fs.promises.stat(fullPath);
 
     if (stats.isDirectory()) {
