@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    ${importmap}
+
+
+    <script type="module">
+        import { onReady } from '$parser/loader/index.js';
+        onReady.then(() => {
+            import('./src/index.tsx').then(res => res.render())
+        }).catch(err => {
+            debugger
+        });
+
+
+
+    </script>
+</head>
+
+<body>
+    <button id="reload">reload</button>
+    <script type="module">
+        document.getElementById("reload").addEventListener("click", evt => {
+            import("./src/index.tsx?query=" + Date.now()).then(res => {
+                res.render()
+            })
+        })
+    </script>
+    <div id="app"></div>
+</body>
+
+</html>

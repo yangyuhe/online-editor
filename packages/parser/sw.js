@@ -1,6 +1,7 @@
-import '/vendors/babel.js';
-import '/babel-plugin/commonAsync.js';
-import '/babel-plugin/es6ImportHash.js';
+import '$parser/vendors/babel.js';
+import '$parser/babel-plugin/commonAsync.js';
+import '$parser/babel-plugin/es6ImportHash.js';
+import '$parser/babel-plugin/es6ImportAbsolute.js';
 
 async function getClient(event) {
   const clientId = event.resultingClientId !== '' ? event.resultingClientId : event.clientId;
@@ -16,13 +17,13 @@ function injectWindow(code, moduleName) {
   return (
     code +
     `\nimport('${moduleName}').then(res=>{
-        _window['${moduleName}']=res;
+        window['${moduleName}']=res;
     });`
   );
 }
 
 function generateEsm(url, keys) {
-  const text = `const  res=await _window['${url}'];
+  const text = `const  res=await window['${url}'];
                     ${keys.includes('default') ? 'export default res.default;' : 'export default res;'}
                     ${keys
                       .filter((key) => key !== 'default')
@@ -75,6 +76,7 @@ async function findExisting(event, module) {
 }
 
 let caches = [];
+let fsMap = {};
 
 addEventListener('message', (evt) => {
   const { data } = evt;
@@ -93,6 +95,9 @@ addEventListener('message', (evt) => {
     if (data.code === 0) p.resolve(data.data);
     else p.reject(new Error('no existing ' + data.module));
   }
+  if (data.type === 'fs') {
+    fsMap[evt.source.id] = JSON.parse(data.data);
+  }
 });
 
 async function respond(event) {
@@ -105,52 +110,29 @@ async function respond(event) {
 
   try {
     let url = new URL(request.url);
-    if (request.url.includes('?content')) {
+    if (url.search === '?content') {
       const real = request.url.slice(0, -'?content'.length);
       return fetch(real);
     }
     if (
-      url.pathname.startsWith('/api/') ||
       url.pathname.endsWith('.html') ||
-      url.pathname === '/' ||
-      url.pathname.startsWith('/index')
+      url.hostname !== 'localhost' ||
+      url.pathname.startsWith('/parser')
     ) {
       return fetch(request);
     }
-    if (!/\.(jsx?|tsx?|css|html)$/.test(url.pathname)) {
-      const response = await fetch(`/api/file?module=${url.pathname}`);
-      const res = await response.json();
-      if (!res.data) {
-        return new Response(`找不到模块${url.pathname}`, {
-          status: 404,
-          headers: {
-            'Content-Type': 'text/javascript;charset=utf-8'
-          }
-        });
-      }
 
-      return new Response(res.data.content, {
-        status: 302,
+    try {
+      const keys = await findExisting(event, request.url);
+      const text = generateEsm(request.url, keys);
+      return new Response(text, {
+        status: 200,
         headers: {
-          'Content-Type': 'text/javascript',
-          Location: res.data.file + url.search
+          'Content-Type': 'text/javascript'
         }
       });
-    }
-
-    if (url.pathname.includes('monaco-editor') && url.pathname.includes('/node_modules')) {
-      try {
-        const keys = await findExisting(event, request.url);
-        const text = generateEsm(request.url, keys);
-        return new Response(text, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/javascript'
-          }
-        });
-      } catch (err) {
-        console.log('request.url-server:', err);
-      }
+    } catch (err) {
+      console.log('request.url-server:', err);
     }
 
     if (url.pathname.endsWith('.css')) {
@@ -176,18 +158,16 @@ async function respond(event) {
 
     if (/\.(j|t)sx$/.test(url.pathname)) {
       let code = '';
-      if (!url.pathname.includes('/node_modules')) {
-        let res = Babel.transform(text, {
-          presets: ['jsx'],
-          plugins: url.search ? [['es6ImportHash', { query: url.search }]] : []
-        });
-        code = res.code;
-      } else {
-        let res = Babel.transform(text, {
-          presets: ['jsx']
-        });
-        code = res.code;
-      }
+      let res = Babel.transform(text, {
+        presets: ['jsx'],
+        plugins: [
+          url.search && !url.pathname.includes('/node_modules')
+            ? ['es6ImportHash', { query: url.search }]
+            : null,
+          ['es6ImportAbsolute', { fs: fsMap[client.id], referrer: request.url }]
+        ].filter(Boolean)
+      });
+      code = res.code;
 
       let resCode = injectWindow(code, request.url);
       return new Response(resCode, {
@@ -198,14 +178,15 @@ async function respond(event) {
     if (/\.(j|t)s$/.test(url.pathname)) {
       if (ises6) {
         let code = '';
-        if (!url.pathname.includes('/node_modules')) {
-          let res = Babel.transform(text, {
-            plugins: url.search ? [['es6ImportHash', { query: url.search }]] : []
-          });
-          code = res.code;
-        } else {
-          code = text;
-        }
+        let res = Babel.transform(text, {
+          plugins: [
+            url.search && !url.pathname.includes('/node_modules')
+              ? ['es6ImportHash', { query: url.search }]
+              : null,
+            ['es6ImportAbsolute', { fs: fsMap[client.id], referrer: request.url }]
+          ].filter(Boolean)
+        });
+        code = res.code;
 
         let resCode = injectWindow(code, request.url);
         return new Response(resCode, {
@@ -215,7 +196,7 @@ async function respond(event) {
       } else if (iscommonjs && url.pathname.includes('node_modules')) {
         try {
           const client = await getClient(event);
-          client.postMessage({ type: 'getmodule', module: request.url });
+          client.postMessage({ type: 'getmodule', module: request.url, content: text });
 
           let cache = caches.find((item) => item.url === request.url);
           let p;
@@ -232,8 +213,8 @@ async function respond(event) {
 
           const keys = await p;
 
-          const text = generateEsm(request.url, keys);
-          return new Response(text, {
+          const esm = generateEsm(request.url, keys);
+          return new Response(esm, {
             status: 200,
             headers: { 'Content-Type': 'text/javascript' }
           });
@@ -248,6 +229,7 @@ async function respond(event) {
     }
     return fetch(request);
   } catch (error) {
+    console.error(error);
     return new Response(error?.message, {
       status: 408,
       headers: { 'Content-Type': 'text/plain' }
@@ -255,9 +237,9 @@ async function respond(event) {
   }
 }
 
-self.addEventListener('install', (evt) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(self.clients.claim());
 });

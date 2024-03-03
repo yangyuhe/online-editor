@@ -1,0 +1,22 @@
+{
+    "name": "parser",
+    "version": "1.0.0",
+    "description": "用于模块编译",
+    "scripts": {
+        "serve": "node ./bin/http2.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "bin": {
+        "parser-start": "./bin/http2.js"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "ws": "^8.16.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.24",
+        "@types/ws": "^8.5.10"
+    }
+}

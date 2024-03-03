@@ -1,5 +1,4 @@
-function es6ImportHash(babel) {
-  const t = babel.types;
+function es6ImportHash() {
   const visitor = {
     ImportDeclaration(path, state) {
       let val = path.node.source.value;
