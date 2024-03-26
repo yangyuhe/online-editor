@@ -1,5 +1,5 @@
 {
-    "name": "parser",
+    "name": "@online-editor/parser",
     "version": "1.0.0",
     "description": "用于模块编译",
     "scripts": {

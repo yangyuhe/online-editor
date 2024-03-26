@@ -10,13 +10,10 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
-        "konva": "^9.2.0",
         "monaco-editor": "^0.39.0",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
-        "react-konva": "^18.2.10",
-        "react-monaco-editor": "^0.54.0",
-        "lodash": "^4.0.0"
+        "react-monaco-editor": "^0.54.0"
     },
     "devDependencies": {
         "@types/react": "^18.2.47",
