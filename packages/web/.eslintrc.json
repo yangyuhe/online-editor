@@ -1,3 +1,9 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": "next/core-web-vitals",
+  "globals": {
+    "React": true
+  },
+  "rules": {
+    "no-unused-vars": "warn"
+  }
 }

@@ -1,7 +1,7 @@
-import '$parser/vendors/babel.js';
-import '$parser/babel-plugin/commonAsync.js';
-import '$parser/babel-plugin/es6ImportHash.js';
-import '$parser/babel-plugin/es6ImportAbsolute.js';
+import './vendors/babel.js';
+import './babel-plugin/commonAsync.js';
+import './babel-plugin/es6ImportHash.js';
+import './babel-plugin/es6ImportAbsolute.js';
 
 async function getClient(event) {
   const clientId = event.resultingClientId !== '' ? event.resultingClientId : event.clientId;

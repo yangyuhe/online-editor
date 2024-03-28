@@ -1,5 +1,7 @@
-import path from 'path';
-import fs from 'fs';
+'use strict';
+
+var path = require('path');
+var fs = require('fs');
 
 /**返回从根目录包括packages下的对应app的文件结构
  * dirPath 文件夹绝对路劲
@@ -38,7 +40,7 @@ async function scanDir(dirPath, excludes = []) {
   return res;
 }
 
-export async function startWatch(projectPath, excludes = []) {
+async function startWatch(projectPath, excludes = []) {
   const res = await scanDir(projectPath, excludes);
 
   const root = {
@@ -50,3 +52,5 @@ export async function startWatch(projectPath, excludes = []) {
   };
   return root;
 }
+
+exports.startWatch = startWatch;
