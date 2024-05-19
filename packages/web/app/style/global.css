@@ -14,3 +14,11 @@ html,
 body {
   @apply h-full;
 }
+
+svg {
+  @apply inline;
+}
+
+.menu :where(li > details > summary):after {
+  display: none;
+}

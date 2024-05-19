@@ -1,7 +1,9 @@
-export type FileItem = {
+export type FileData = {
   name: string;
   type: 'dir' | 'file';
   path: string;
   isroot?: boolean;
-  children?: FileItem[];
+  children?: FileData[];
+  content?: string;
+  parent?: FileData;
 };

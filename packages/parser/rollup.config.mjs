@@ -1,24 +1,26 @@
 // rollup.config.mjs
+import typescript from '@rollup/plugin-typescript';
 
 export default [
+  // {
+  //   input: 'loader/index.ts',
+  //   output: {
+  //     file: 'dist/bundle.js',
+  //     format: 'es'
+  //   }
+  // },
+  // {
+  //   input: './sw.js',
+  //   output: {
+  //     file: 'dist/sw.js',
+  //     format: 'es'
+  //   }
+  // },
   {
-    input: 'loader/index.js',
+    input: './bin/listFiles.ts',
+    plugins: [typescript()],
     output: {
-      file: 'dist/bundle.js',
-      format: 'es'
-    }
-  },
-  {
-    input: './sw.js',
-    output: {
-      file: 'dist/sw.js',
-      format: 'es'
-    }
-  },
-  {
-    input: './bin/ws.js',
-    output: {
-      file: 'dist/startWatch.js',
+      file: 'dist/listFiles.js',
       format: 'cjs'
     }
   }

@@ -4,10 +4,11 @@ import { calcuPath } from './calcuPath.js';
 /**
  * moduleRequired 模块的绝对路径
  */
-export async function loadModule(moduleRequired, parent = null, content = null) {
+export async function loadModule(moduleRequired: string, parent = null, content = null) {
   if (parent) {
     insertNode(parent, moduleRequired);
   }
+
   const requiredModule = moduleRequired.endsWith('.js') ? moduleRequired : moduleRequired + '.js';
   if (!window[requiredModule]) {
     window[requiredModule] = new Promise(async (resolve, reject) => {
@@ -35,6 +36,8 @@ export async function loadModule(moduleRequired, parent = null, content = null) 
         } else {
           const code = Babel.transform(text, { plugins: ['commonAsync'] }).code;
           const AsyncFunction = (async () => {}).constructor;
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          //@ts-ignore
           const fn = new AsyncFunction('module', 'exports', 'require', code);
           const module = { exports: {} };
 

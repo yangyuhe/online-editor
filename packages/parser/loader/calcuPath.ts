@@ -1,11 +1,11 @@
 /**
  *
- * @param {*} referer 如https://localhost:8443/packages/test-monaco-editor/index.html
- * @param {*} target 如react-dom/client
+ * @param {*} originRequiredModule 请求最开始的模块
+ * @param {*} subRequredModule originRequiredModule的依赖模块
  * @param {*} fs
  */
-export function calcuPath(referer, target, fs) {
-  const url = new URL(referer);
+export function calcuPath(originRequiredModule: string, subRequredModule: string, fs: FileData) {
+  const url = new URL(originRequiredModule);
   const paths = url.pathname.split('/').filter(Boolean);
   const parents = [fs];
   let cur = fs;
@@ -20,8 +20,8 @@ export function calcuPath(referer, target, fs) {
       break;
     }
   }
-  if (target.startsWith('./') || target.startsWith('../')) {
-    const parts = target.split('/');
+  if (subRequredModule.startsWith('./') || subRequredModule.startsWith('../')) {
+    const parts = subRequredModule.split('/');
     while (true) {
       const part = parts.shift();
       if (part === '.') continue;
@@ -32,7 +32,7 @@ export function calcuPath(referer, target, fs) {
       if (parts.length === 0) {
         const dir = parents.pop();
         const reg = new RegExp(`^${part}\\.(t|j)sx?$`);
-        let file = dir.children.find((item) => reg.test(item.name) || item.name === part);
+        const file = dir.children.find((item) => reg.test(item.name) || item.name === part);
         if (file?.type === 'file') return file.path;
         const subdir = dir.children.find((item) => item.name === part);
         if (subdir.type === 'dir') {
@@ -56,7 +56,7 @@ export function calcuPath(referer, target, fs) {
       if (node.type === 'dir') {
         const nodeModulesDirNode = node.children.find((item) => item.name === 'node_modules');
         if (nodeModulesDirNode) {
-          const path = findLibrary(nodeModulesDirNode, target);
+          const path = findLibrary(nodeModulesDirNode, subRequredModule);
           if (path) return path;
         }
       }
@@ -103,7 +103,7 @@ function findLibrary(dirNode, library) {
 
       break;
     }
-    let part = requiredParts.shift();
+    const part = requiredParts.shift();
     const child = cur.children.find((item) => item.name === part);
     if (child) cur = child;
     else return null;

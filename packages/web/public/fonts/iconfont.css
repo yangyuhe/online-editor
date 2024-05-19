@@ -1,9 +1,9 @@
 @font-face {
   font-family: "iconfont"; /* Project id 4516996 */
-  src: url('iconfont.woff2?t=1713714999951') format('woff2'),
-       url('iconfont.woff?t=1713714999951') format('woff'),
-       url('iconfont.ttf?t=1713714999951') format('truetype'),
-       url('iconfont.svg?t=1713714999951#iconfont') format('svg');
+  src: url('iconfont.woff2?t=1716715012503') format('woff2'),
+       url('iconfont.woff?t=1716715012503') format('woff'),
+       url('iconfont.ttf?t=1716715012503') format('truetype'),
+       url('iconfont.svg?t=1716715012503#iconfont') format('svg');
 }
 
 .iconfont {
@@ -12,6 +12,54 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.online-editor-sync:before {
+  content: "\e786";
+}
+
+.online-editor-eye:before {
+  content: "\e78f";
+}
+
+.online-editor-edit-square:before {
+  content: "\e791";
+}
+
+.online-editor-save:before {
+  content: "\e792";
+}
+
+.online-editor-file-add:before {
+  content: "\e7b7";
+}
+
+.online-editor-Batchfolding:before {
+  content: "\e7bf";
+}
+
+.online-editor-delete:before {
+  content: "\e7c3";
+}
+
+.online-editor-folder:before {
+  content: "\e7d1";
+}
+
+.online-editor-folder-open:before {
+  content: "\e7d2";
+}
+
+.online-editor-folder-add:before {
+  content: "\e7d3";
+}
+
+.online-editor-minus-square:before {
+  content: "\e796";
+}
+
+.online-editor-plus-square:before {
+  content: "\e797";
 }
 
 .online-editor-setting:before {

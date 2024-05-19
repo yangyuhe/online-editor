@@ -1,17 +1,14 @@
-'use strict';
-
-var path = require('path');
-var fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 
 /**返回从根目录包括packages下的对应app的文件结构
  * dirPath 文件夹绝对路劲
  * excludes 排除的子文件夹名称
  */
-async function scanDir(dirPath, excludes = []) {
+export async function scanDir(dirPath: string, rootPath: string, excludes: string[] = []) {
   const dirs = await fs.promises.readdir(dirPath);
-  let promises = [];
-  let res = [];
-  const root = process.cwd();
+  const promises = [];
+  const res = [];
   const scan = async (dir) => {
     if (!excludes.includes(dir) && !dir.startsWith('.')) {
       const subdirPath = path.resolve(dirPath, dir);
@@ -22,17 +19,20 @@ async function scanDir(dirPath, excludes = []) {
       }
       const item = {
         name: dir,
-        path: '/' + path.relative(root, subdirPath),
+        path: '/' + path.relative(rootPath, subdirPath),
         type: stats.isDirectory() ? 'dir' : 'file',
-        content
+        content,
+        children: []
       };
       res.push(item);
       try {
         if (stats.isDirectory()) {
-          const children = await scanDir(subdirPath);
+          const children = await scanDir(subdirPath, rootPath, excludes);
           item.children = children;
         }
-      } catch (err) {}
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
   dirs.forEach((dir) => promises.push(scan(dir)));
@@ -40,17 +40,15 @@ async function scanDir(dirPath, excludes = []) {
   return res;
 }
 
-async function startWatch(projectPath, excludes = []) {
-  const res = await scanDir(projectPath, excludes);
+export async function startWatch(projectPath: string, excludes: string[] = []) {
+  const res = await scanDir(projectPath, projectPath, excludes);
 
   const root = {
     name: 'root',
     type: 'dir',
     isroot: true,
-    path: '/',
+    path: '',
     children: res
   };
   return root;
 }
-
-exports.startWatch = startWatch;

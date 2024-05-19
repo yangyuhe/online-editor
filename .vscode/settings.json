@@ -2,7 +2,15 @@
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "typescript.format.enable": true,
-  "[typescriptreact][typescript][json]": {
+  "[typescriptreact]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
@@ -13,5 +21,10 @@
   "prettier.enable": true,
   "files.associations": {
     "*.css": "tailwindcss"
-  }
+  },
+  "eslint.codeActionsOnSave.mode": "all",
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "always"
+  },
+  "gitlens.statusBar.dateFormat": ""
 }
