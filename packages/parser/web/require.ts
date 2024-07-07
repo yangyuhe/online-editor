@@ -1,15 +1,12 @@
-import { insertNode } from './dependency-tree';
-import { calcuPath } from './calcuPath';
+import '@/common/babel-plugin';
+import * as Babel from '@babel/standalone';
+import { MsgType } from '../common/types';
+import { tunnelTask } from '.';
 
 /**
  * moduleRequired 模块的绝对路径
  */
-export async function loadModule(moduleRequired: string, parent = null, content = null) {
-  if (parent) {
-    insertNode(parent, moduleRequired);
-  }
-
-  const requiredModule = moduleRequired.endsWith('.js') ? moduleRequired : moduleRequired + '.js';
+export async function loadModule(requiredModule: string, sw: ServiceWorker) {
   if (!window[requiredModule]) {
     window[requiredModule] = new Promise(async (resolve, reject) => {
       try {
@@ -19,15 +16,7 @@ export async function loadModule(moduleRequired: string, parent = null, content 
           return;
         }
 
-        let text = '';
-        if (!content) {
-          const res = await fetch(requiredModule + '?content');
-          if (res.status === 404) {
-            reject(new Error('not found ' + requiredModule));
-            return;
-          }
-          text = await res.text();
-        } else text = content;
+        const text = await tunnelTask(MsgType.GetFileContent, requiredModule, sw);
 
         if (isEs6(text)) {
           const res = await import(requiredModule);
@@ -42,8 +31,14 @@ export async function loadModule(moduleRequired: string, parent = null, content 
           const module = { exports: {} };
 
           await fn(module, module.exports, async (module) => {
-            const fullPath = calcuPath(requiredModule, module, window._fs);
-            if (fullPath) return loadModule(location.origin + fullPath, moduleRequired, null);
+            //requiredModule如http://localhost:3000/old-react-test/$$NODE_MODULES/react@16.14.0/node_modules/react/index.js
+            //module如./cjs/react.development.js
+            const absolutePath = await tunnelTask(
+              MsgType.CalcuPath,
+              { curPath: requiredModule, requiredModule: module },
+              sw
+            );
+            if (absolutePath) return loadModule(new URL(requiredModule).origin + absolutePath, sw);
             else throw new Error('没有找到依赖的子模块' + module);
           });
           resolve(module.exports);

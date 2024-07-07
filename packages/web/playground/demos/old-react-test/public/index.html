@@ -7,7 +7,12 @@
   </head>
   <body>
     <div id="app"></div>
-    <script src="/sw.js"></script>
-    <script type="module" src="../src/index.tsx"></script>
+    <script type="module">
+      import('/web.js').then((res) => {
+        res.onReady.then(() => {
+          import('/old-react-test/$$SRC/src/index.tsx');
+        });
+      });
+    </script>
   </body>
 </html>

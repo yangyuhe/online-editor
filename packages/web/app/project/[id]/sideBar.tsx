@@ -6,7 +6,7 @@ export default function Sidebar() {
   const { setCurFile } = useProjectContext();
   return (
     <ul
-      className='menu bg-neutral text-neutral-content'
+      className='menu bg-neutral text-neutral-content flex-none'
       onClick={() => {
         setCurFile(null);
       }}

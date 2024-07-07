@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "用于模块编译",
   "scripts": {
-    "build": "rm -rf dist && rollup --config && tsc ./bin/listFiles.ts -p tsconfig.json",
+    "build": "rm -rf dist && tsc -b web sw && rollup --config && cp dist/web/bundle.js ../web/public/web.js && cp dist/sw/bundle.js ../web/public/sw.js",
     "test": "jest"
   },
   "bin": {
@@ -13,18 +13,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@babel/standalone": "^7.24.6",
-    "ws": "^8.16.0"
+    "@babel/standalone": "^7.24.6"
   },
   "devDependencies": {
     "@babel/core": "^7.24.6",
     "@babel/preset-env": "^7.24.6",
     "@babel/preset-typescript": "^7.24.6",
     "@jest/globals": "^29.7.0",
+    "@rollup/plugin-alias": "^5.1.0",
+    "@rollup/plugin-commonjs": "^26.0.1",
+    "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^11.1.6",
     "@types/babel__standalone": "^7.1.7",
     "@types/node": "^20.11.24",
-    "@types/ws": "^8.5.10",
     "@typescript-eslint/eslint-plugin": "^7.10.0",
     "babel-jest": "^29.7.0",
     "eslint": "^8",

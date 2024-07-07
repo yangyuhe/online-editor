@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { useProjectContext } from './context';
 import Icon, { IconName } from '../../components/icon';
-import { FileData } from '../../utils/types';
 import { newFileName } from '../../utils/path';
+import { FileItem } from '@online-editor/parser/common/types';
 
 export default function Tools() {
   const { reRenderDir, setCurFile, curFile, setRenameFile } = useProjectContext();
@@ -24,10 +24,9 @@ export default function Tools() {
       const addNewFile = (type: 'file' | 'dir') => {
         const parent = curFile.type === 'file' ? curFile.parent : curFile;
         const newName = newFileName(parent);
-        const newFile: FileData = {
+        const newFile: FileItem = {
           name: newName,
           type,
-          path: parent.path + '/' + newName,
           content: '',
           parent,
           children: []
@@ -35,7 +34,7 @@ export default function Tools() {
         parent.children.push(newFile);
 
         setCurFile(newFile);
-        setRenameFile(newFile.path);
+        setRenameFile(newFile);
         reRenderDir();
       };
       m.push({
@@ -56,7 +55,7 @@ export default function Tools() {
         icon: 'edit-square',
         tip: '重命名',
         onClick() {
-          setRenameFile(curFile.path);
+          setRenameFile(curFile);
         }
       });
       m.push({ icon: 'delete', tip: '删除' });
@@ -64,7 +63,7 @@ export default function Tools() {
       if (curFile.type === 'file') {
         m.push({ icon: 'save', key: 'save-single', tip: '保存' });
       }
-      if (curFile.path === 'package.json') {
+      if (curFile.name === 'package.json' && !curFile.parent) {
         m.push({ icon: 'sync', tip: '更新依赖包' });
       }
       return m;

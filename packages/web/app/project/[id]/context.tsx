@@ -1,30 +1,27 @@
+import { FileItem, FsData } from '@online-editor/parser/common/types';
 import React, { useContext, useEffect, useState } from 'react';
-import { FileData } from '../../utils/types';
 
 type ProjectContextType = {
   /**目录结构 */
-  dir: FileData;
-  /**设置目录结构 */
-  setDir: (FileData) => void;
-  /**更新目录 */
-  reRenderDir: () => void;
+  exFsData: ExtFsData;
   /**当前打开的文件 */
-  curFile: FileData;
+  curFile: FileItem;
   /**设置当前打开的文件 */
-  setCurFile: (file: FileData) => void;
+  setCurFile: (file: FileItem) => void;
   /**重命名的文件（路径） */
-  renameFile: string;
+  renameFile: FileItem;
   /**设置当前重命名的文件的 */
-  setRenameFile: (path: string) => void;
+  setRenameFile: (file: FileItem) => void;
+  /**刷新文件树 */
+  refreshDirTree: () => void;
 };
 const ProjectContext = React.createContext<ProjectContextType>({
-  dir: null,
-  setDir: () => {},
-  reRenderDir: () => {},
+  exFsData: null,
   curFile: null,
   setCurFile: () => {},
-  renameFile: '',
-  setRenameFile: () => {}
+  renameFile: null,
+  setRenameFile: () => {},
+  refreshDirTree: () => {}
 });
 
 type ProjectContextProviderProps = {
@@ -35,20 +32,19 @@ type ProjectContextProviderProps = {
 export const useProjectContext = () => useContext(ProjectContext);
 
 export function ProjectContextProvider({ children, projectId }: ProjectContextProviderProps) {
-  const [dir, setDir, reRenderDir] = useDirs(projectId);
-  const [curFile, setCurFile] = useState<FileData>(null);
-  const [renameFile, setRenameFile] = useState('');
+  const [exFsData, refreshDirTree] = useDirs(projectId);
+  const [curFile, setCurFile] = useState<FileItem>(null);
+  const [renameFile, setRenameFile] = useState<FileItem>(null);
 
   return (
     <ProjectContext.Provider
       value={{
-        dir,
-        setDir,
+        exFsData,
         curFile,
         setCurFile,
         renameFile,
         setRenameFile,
-        reRenderDir
+        refreshDirTree
       }}
     >
       {children}
@@ -56,27 +52,48 @@ export function ProjectContextProvider({ children, projectId }: ProjectContextPr
   );
 }
 
-function useDirs(projectId): [FileData, (FileData) => void, () => void] {
-  const [dir, setDir] = useState<FileData>(null);
+type ExtFsData = { nodeModules: FileItem } & FsData;
+
+function useDirs(projectId): [ExtFsData, () => void] {
+  const [dir, setDir] = useState<ExtFsData>(null);
   useEffect(() => {
     const eventSource = new EventSource('/api/sse?project=' + projectId, {
       withCredentials: true
     });
     console.info('Listenting on SEE', eventSource);
     eventSource.onmessage = (event) => {
-      const rootDir: FileData = JSON.parse(event.data);
-      const setParent = (dir: FileData) => {
+      const fsData: FsData = JSON.parse(event.data);
+      console.log(fsData);
+      const linkParent = (dir: FileItem) => {
         dir.children.forEach((child) => {
           child.parent = dir;
-          if (child.type === 'dir') setParent(child);
+          if (child.type === 'dir') linkParent(child);
         });
       };
-      setParent(rootDir);
-      setDir(rootDir);
+      fsData.source.forEach((i) => i.type === 'dir' && linkParent(i));
+
+      const extFsData: ExtFsData = {
+        ...fsData,
+        nodeModules: { name: 'node_modules', type: 'dir', children: [], content: '' }
+      };
+      const modules: FileItem[] = [];
+      Object.entries(fsData.modules).forEach((entry) => {
+        modules.push({
+          // name: entry[0].split('/')[1].replace('+', '/'),
+          name: entry[1].packageName,
+          content: '',
+          children: entry[1].dirs,
+          type: 'dir'
+        });
+      });
+      extFsData.nodeModules.children = modules;
+      linkParent(extFsData.nodeModules);
+
+      setDir(extFsData);
     };
     return () => {
       eventSource.close();
     };
   }, [projectId]);
-  return [dir, setDir, () => setDir({ ...dir })];
+  return [dir, () => setDir({ ...dir })];
 }

@@ -17,7 +17,7 @@ export default function Project(props: { params: { id: string } }) {
         <Tools />
         <div className='flex flex-auto overflow-hidden'>
           <Sidebar />
-          <div className='w-[200px] bg-base-300 overflow-auto'>
+          <div className='w-[200px] bg-base-300 overflow-auto flex-none'>
             <Directory />
           </div>
           <div className='flex-auto bg-base-100'>

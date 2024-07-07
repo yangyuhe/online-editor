@@ -1,4 +1,4 @@
-import { listFiles } from '@online-editor/parser/dist/listFiles.js';
+import { listFiles } from '@online-editor/parser/server/listFiles';
 import { NextRequest } from 'next/server';
 import path from 'path';
 
@@ -8,10 +8,13 @@ export async function GET(request: NextRequest) {
   const responseStream = new TransformStream();
   const writer = responseStream.writable.getWriter();
   const encoder = new TextEncoder();
-  const dir = await listFiles(path.resolve(process.cwd(), './playground/demos/' + project));
+  const fsData = await listFiles(
+    path.resolve(process.env.APPS_DIR, project),
+    path.resolve(process.env.PLAYGROUND_DIR, 'node_modules/.pnpm')
+  );
 
   writer
-    .write(encoder.encode('data: ' + JSON.stringify(dir) + '\n\n'))
+    .write(encoder.encode('data: ' + JSON.stringify(fsData) + '\n\n'))
     .then(() => {
       console.log('写成功');
     })

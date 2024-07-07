@@ -1,12 +1,11 @@
-import { FileData } from './types';
+import { FileItem } from '@online-editor/parser/common/types';
 
-export function changeFilePath(path: string, newName: string) {
-  const paths = path.split('/');
-  paths.pop();
-  return paths.concat(newName).join('/');
+export function getFileFullPath(item: FileItem) {
+  if (item.parent) return getFileFullPath(item.parent) + '/' + item.name;
+  return item.name;
 }
 
-export function newFileName(dir: FileData) {
+export function newFileName(dir: FileItem) {
   const name = 'Untitled';
   let count = 1;
   while (true) {

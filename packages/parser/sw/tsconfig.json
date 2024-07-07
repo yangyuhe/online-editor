@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["esnext", "WebWorker"],
+    "rootDir": "./",
+    "outDir": "../dist/sw"
+  },
+  "files": ["index.ts"],
+  "references": [
+    {
+      "path": "../common"
+    }
+  ]
+}

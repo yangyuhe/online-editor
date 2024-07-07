@@ -1,6 +1,6 @@
 declare let Babel: any;
 
-interface Window {
+declare interface Window {
   /**包之间的依赖关系,用于调试某个包为什么被加载 */
   _tree: any[];
   /**模拟webpack中可能用到process变量 */
@@ -9,13 +9,3 @@ interface Window {
   _fs: FileData;
   [module: string]: Promise<any>;
 }
-
-type FileData = {
-  name: string;
-  type: 'dir' | 'file';
-  path: string;
-  isroot?: boolean;
-  children?: FileData[];
-  content?: string;
-  parent?: FileData;
-};

@@ -1,6 +1,10 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "lib": ["esnext"]
-  }
+    "lib": ["esnext"],
+    "composite": true,
+    "outDir": "../dist/common",
+    "rootDir": "./"
+  },
+  "include": ["./**/*"]
 }

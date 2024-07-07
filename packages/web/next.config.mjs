@@ -6,10 +6,10 @@ import fs from 'fs';
 import path from 'path';
 
 /**拷贝sw.js文件 */
-const require = createRequire(import.meta.url);
-const swPath = require.resolve('@online-editor/parser/dist/sw.js');
-const publicSwPath = path.resolve(__dirname, 'public/sw.js');
-fs.copyFileSync(swPath, publicSwPath);
+// const require = createRequire(import.meta.url);
+// const swPath = require.resolve('@online-editor/parser/dist/sw.js');
+// const publicSwPath = path.resolve(__dirname, 'public/sw.js');
+// fs.copyFileSync(swPath, publicSwPath);
 
 const nextConfig = {
   //防止开发阶段组件被渲染两次
@@ -20,7 +20,7 @@ const nextConfig = {
       config.plugins.push(
         new MonacoWebpackPlugin({
           // available options are documented at https://github.com/microsoft/monaco-editor/blob/main/webpack-plugin/README.md#options
-          languages: ['json', 'javascript', 'typescript'],
+          languages: ['json', 'javascript', 'typescript', 'css'],
           filename: 'static/[name].worker.js'
         })
       );
