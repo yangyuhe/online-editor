@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { useProjectContext } from './context';
-import Icon, { IconName } from '../../components/icon';
-import { newFileName } from '../../utils/path';
+import Icon, { IconName } from '@/components/icon';
+import { newFileName } from '@/utils/path';
 import { FileItem } from '@online-editor/parser/common/types';
 
 export default function Tools() {
-  const { reRenderDir, setCurFile, curFile, setRenameFile } = useProjectContext();
+  const { setCurFile, curFile, setRenameFile } = useProjectContext();
 
   const menus = useMemo(() => {
     const m: {
@@ -35,7 +35,6 @@ export default function Tools() {
 
         setCurFile(newFile);
         setRenameFile(newFile);
-        reRenderDir();
       };
       m.push({
         icon: 'file-add',
@@ -70,7 +69,7 @@ export default function Tools() {
     }
 
     return m;
-  }, [curFile, reRenderDir, setCurFile, setRenameFile]);
+  }, [curFile, setCurFile, setRenameFile]);
 
   return (
     <ul className='menu bg-neutral text-neutral-content menu-horizontal'>

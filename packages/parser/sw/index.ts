@@ -2,6 +2,7 @@ import * as Babel from '@babel/standalone';
 import '@/common/babel-plugin';
 import { calculateAbsolutePath, getFileContent } from '@/common/util';
 import { FsData, Msg, MsgType, PathPrefix } from '../common/types';
+import mime from 'mime';
 
 const globalSelf = self as unknown as ServiceWorkerGlobalScope;
 
@@ -10,7 +11,10 @@ const globalSelf = self as unknown as ServiceWorkerGlobalScope;
 async function getClient(event: FetchEvent) {
   const clientId = event.resultingClientId !== '' ? event.resultingClientId : event.clientId;
   try {
-    const clientList = await globalSelf.clients.matchAll();
+    const clientList = await globalSelf.clients.matchAll({
+      includeUncontrolled: true,
+      type: 'all'
+    });
     const client = clientList.find((client) => client.id === clientId);
     return client;
   } catch (err) {
@@ -21,13 +25,13 @@ function injectWindow(code, moduleName) {
   return (
     code +
     `\nimport('${moduleName}').then(res=>{
-        window['${moduleName}']=res;
+        globalThis['${moduleName}']=res;
     });`
   );
 }
 
 function generateEsm(url, keys) {
-  const text = `const  res=await window['${url}'];
+  const text = `const  res=await globalThis['${url}'];
                     ${keys.includes('default') ? 'export default res.default;' : 'export default res;'}
                     ${keys
                       .filter((key) => key !== 'default')
@@ -47,14 +51,14 @@ Babel.registerPreset('jsx', {
 function isEs6(text) {
   const es6 = text
     .split('\n')
-    .some((line) => line.startsWith('export ') || text.startsWith('import '));
+    .some((line) => line.startsWith('export ') || line.startsWith('import '));
   return es6;
 }
 function isCommonjs(text) {
   const commonjs = text
     .split('\n')
     .some(
-      (line) => line.includes("require('") || text.includes('require("') || text.includes('exports')
+      (line) => line.includes("require('") || line.includes('require("') || line.includes('exports')
     );
   return commonjs;
 }
@@ -91,7 +95,15 @@ addEventListener('message', (evt: MessageEvent<Msg>) => {
   }
   if (msgType === MsgType.Init) {
     const appName = msgData;
-    if (!appFsData[appName]) {
+    if (
+      !appFsData[appName] ||
+      !appFsData[appName].eventSource ||
+      appFsData[appName].eventSource.readyState === EventSource.CLOSED ||
+      !appFsData[appName].fs
+    ) {
+      if (appFsData[appName]?.eventSource) {
+        appFsData[appName].eventSource.close();
+      }
       const eventSource = new EventSource('/api/sse?project=' + appName);
       eventSource.addEventListener('message', (event) => {
         appFsData[appName].fs = JSON.parse(event.data);
@@ -99,6 +111,8 @@ addEventListener('message', (evt: MessageEvent<Msg>) => {
       });
       eventSource.addEventListener('error', (evt) => {
         console.error('sse error', evt);
+        eventSource.close();
+        appFsData[appName].eventSource = null;
       });
       appFsData[appName] = {
         eventSource,
@@ -158,7 +172,11 @@ globalSelf.addEventListener('fetch', (event: FetchEvent) => {
   console.log('record:', event.request.url);
   const { request } = event;
   const url = new URL(request.url);
-  if (!url.pathname.includes(PathPrefix.NODE_MODULES) && !url.pathname.includes(PathPrefix.SRC)) {
+  if (
+    !url.pathname.includes(PathPrefix.NODE_MODULES) &&
+    !url.pathname.includes(PathPrefix.SRC) &&
+    !url.pathname.includes(PathPrefix.PUBLIC)
+  ) {
     return;
   }
   event.respondWith(respond(event));
@@ -171,17 +189,29 @@ async function respond(event: FetchEvent) {
   try {
     const url = new URL(request.url);
 
+    if (url.pathname.includes(PathPrefix.PUBLIC)) {
+      const appName = new URL(request.referrer).pathname.split('/').pop();
+      const content = getContentByUrl(
+        request.url.replace(PathPrefix.PUBLIC, '/' + appName + '/$$SRC/public')
+      );
+
+      return new Response(content, {
+        headers: {
+          'Content-Type': url.pathname.match(/\.(t|j)sx?$/)
+            ? 'application/javascript'
+            : mime.getType(url.pathname)
+        }
+      });
+    }
+
     if (url.pathname.endsWith('.css')) {
       const text = getContentByUrl(request.url);
-      const transformed = `
-      
-            const style=document.createElement("style");
-            style.innerHTML=\`
-            /*${request.url} transformed by online-editor*/
-            ${text.replace(/`/g, '\\`')}
-            \`;
-            document.head.appendChild(style);
-            `;
+      const transformed = [
+        'const style=document.createElement("style");',
+        'style.innerHTML=',
+        JSON.stringify(text) + ';',
+        'document.head.appendChild(style);'
+      ].join('\n');
       return new Response(transformed, {
         status: 200,
         headers: {

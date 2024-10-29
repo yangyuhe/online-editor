@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import Icon from '../../components/icon';
+import Icon from '@/components/icon';
 import { useProjectContext } from './context';
 import cn from 'classnames';
-import { getFileFullPath } from '../../utils/path';
+import { getFileFullPath } from '@/utils/path';
 import { FileItem } from '@online-editor/parser/common/types';
 
 /**文件夹 */

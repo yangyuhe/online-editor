@@ -8,4 +8,6 @@ declare interface Window {
   /**获取当前项目文件目录结构（包括node_modules中的） */
   _fs: FileData;
   [module: string]: Promise<any>;
+  /**当前预览的应用 */
+  __preview_app: string;
 }

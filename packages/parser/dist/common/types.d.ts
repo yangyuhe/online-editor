@@ -55,5 +55,6 @@ export type Msg = {
 };
 export declare enum PathPrefix {
     SRC = "/$$SRC",
-    NODE_MODULES = "/$$NODE_MODULES"
+    NODE_MODULES = "/$$NODE_MODULES",
+    PUBLIC = "/$$PUBLIC"
 }

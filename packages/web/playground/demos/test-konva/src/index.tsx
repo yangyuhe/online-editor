@@ -1,6 +1,5 @@
 import { createRoot } from 'react-dom/client';
 import * as React from 'react';
-import * as _ from 'lodash';
 import { App } from './app';
 import './index.css';
 

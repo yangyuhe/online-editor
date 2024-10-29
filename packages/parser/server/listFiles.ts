@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import * as crypto from 'node:crypto';
 import { FileItem, ModulesData, FsData } from '../common/types';
 
 /**返回从根目录包括packages下的对应app的文件结构
@@ -122,7 +123,7 @@ async function getNodeModules(rootPath, pnpmPath: string) {
     tasks.push(fetchModulesData(moduleName));
   });
   taskGroup.push(tasks);
-  while (taskGroup) {
+  while (true) {
     const tasks = taskGroup.pop();
     if (!tasks) break;
     await Promise.all(tasks);
@@ -136,11 +137,33 @@ async function getNodeModules(rootPath, pnpmPath: string) {
  * @param pnpmPath 示例"/Users/hexiang/myself/online-editor/packages/web/playground/node_modules/.pnpm"
  * @returns
  */
-export async function listFiles(projectPath: string, pnpmPath: string): Promise<FsData> {
+export function listFiles(
+  projectPath: string,
+  pnpmPath: string,
+  onFileData: (data: FsData) => void
+) {
   console.log('pnpmPath:', pnpmPath);
-  const res = await Promise.all([
-    scanDir(projectPath),
-    getNodeModules(path.resolve(projectPath, 'node_modules'), pnpmPath)
-  ]);
-  return { source: res[0], modules: res[1] };
+  const projectNodeModulesDir = path.resolve(projectPath, 'node_modules');
+  const exists = fs.existsSync(projectNodeModulesDir);
+  let moduleFs = {};
+  if (exists) {
+    moduleFs = getNodeModules(path.resolve(projectPath, 'node_modules'), pnpmPath);
+  }
+
+  Promise.all([scanDir(projectPath), moduleFs]).then((res) => {
+    onFileData({ source: res[0], modules: res[1] });
+  });
+  let timestamp = 0;
+  const uuid = crypto.randomUUID();
+  const fsWatcher = fs.watch(projectPath, { recursive: true }, async (eventType, filename) => {
+    if (timestamp === 0 || Date.now() - timestamp > 200) {
+      console.log('uuid:', uuid, timestamp);
+      timestamp = Date.now();
+      const res = await Promise.all([scanDir(projectPath), moduleFs]);
+      onFileData({ source: res[0], modules: res[1] });
+      console.log(eventType, filename);
+    }
+  });
+
+  return fsWatcher;
 }

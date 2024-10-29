@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { PathPrefix } from './types';
 export function findInMap(m, fn) {
-    const key = Object.keys(m).find((key) => {
-        return fn(m[key]);
+    const val = Object.values(m).find((val) => {
+        return fn(val);
     });
-    return m[key];
+    return val;
 }
 /**获取一个源文件的内容
  * path 例如/$$SRC/index.ts , /$$NODE_MODULES/react@16.14.0/node_modules/react/index.js
@@ -32,84 +33,115 @@ export function getFileContent(fs, path) {
         files = child.children;
     }
 }
+/**
+ * 从dirs列表以及子文件夹中查找路径为filePath的文件
+ * @param filePath 不含/开头的路径
+ * @param dirs
+ * @returns 返回值不包含/开头
+ */
 function findFile(filePath, dirs) {
-    let dest;
     const fileSlices = filePath.split('/');
-    for (let i = 1; i < fileSlices.length; i++) {
-        dest = dirs.find((j) => j.name === fileSlices[i]);
-        if (dest?.type === 'dir') {
-            dirs = dest.children;
-        }
-        if (!dest) {
-            //import "xx/a"相当于import "xx/a.jsx?"或者import "xx/a.tsx?"
-            dest = dirs.find((j) => j.name.match(new RegExp('^' + fileSlices[i] + '.(j|t)sx?$')));
-            fileSlices[fileSlices.length - 1] = dest.name;
-            return fileSlices.join('/');
-        }
-    }
-    if (dest)
-        return filePath;
-    //import "xx" 相当于 import "xx/index.js"或者import "xx/index.ts"
-    dest = dirs.find((j) => j.name.match(new RegExp('^index.(j|t)sx?$')));
-    fileSlices.push(dest.name);
-    return fileSlices.join('/');
-}
-//例如 requiredModule ./factoryWithTypeCheckers
-//curPath /$$NODE_MODULES/prop-types@15.8.1/node_modules/prop-types/index.js
-export function calculateAbsolutePath(requiredModule, curPath, fs) {
-    if (requiredModule.startsWith('.')) {
-        const curQ = curPath.split('/');
-        curQ.pop();
-        const desQ = requiredModule.split('/');
-        while (desQ.length > 0) {
-            const top = desQ.shift();
-            if (top === '.')
-                continue;
-            if (top === '..') {
-                curQ.pop();
+    for (let i = 0; i < fileSlices.length; i++) {
+        const dir = dirs.find((j) => j.name === fileSlices[i] && j.type === 'dir');
+        if (dir) {
+            if (i === fileSlices.length - 1) {
+                //import "xx" 相当于 import "xx/index.js"或者import "xx/index.ts"
+                const file = dir.children.find((j) => j.name.match(new RegExp('^index.(j|t)sx?$')));
+                fileSlices.push(file.name);
+                return fileSlices.join('/');
+            }
+            else {
+                dirs = dir.children;
                 continue;
             }
-            curQ.push(top);
         }
+        let file = dirs.find((j) => j.name === fileSlices[i] && j.type === 'file');
+        if (file) {
+            if (i === fileSlices.length - 1)
+                return fileSlices.join('/');
+            else
+                throw new Error('找不到匹配的文件路径:' + filePath);
+        }
+        else {
+            //import "xx/a"相当于import "xx/a.jsx?"或者import "xx/a.tsx?"
+            file = dirs.find((j) => j.name.match(new RegExp('^' + fileSlices[i] + '.(j|t)sx?$')));
+            if (file) {
+                fileSlices[fileSlices.length - 1] = file.name;
+                return fileSlices.join('/');
+            }
+            else
+                throw new Error('找不到匹配的文件路径:' + filePath);
+        }
+    }
+    throw new Error('找不到匹配的文件路径:' + filePath);
+}
+/**
+ * 根据相对路径计算绝对路径
+ * @param relativePath 相对路径
+ * @param basePath 当前路径
+ * @returns
+ */
+function flatPath(relativePath, basePath) {
+    const url = new URL(relativePath, 'file://' + basePath);
+    return url.pathname;
+}
+/**
+ * 负责计算被require的文件的绝对路径
+ * @param requiredModule 例如 ./factoryWithTypeCheckers
+ * @param curPath 例如/$$NODE_MODULES/prop-types@15.8.1/node_modules/prop-types/index.js
+ * @param fs 文件系统
+ * @returns
+ */
+export function calculateAbsolutePath(requiredModule, curPath, fs) {
+    if (requiredModule.startsWith('./') || requiredModule.startsWith('../')) {
+        //说明请求的是当前包中的文件或者是非包文件（即src文件）
         //requiredFile 例如/$$NODE_MODULES/react@16.14.0/node_modules/react/cjs/react.development.js
-        const requiredFile = curQ.join('/');
-        if (requiredFile.match(/\.\w+$/))
-            return requiredFile;
+        const requiredFile = flatPath(requiredModule, curPath);
         let dirs;
         let filePath;
         let prefix;
+        //是否是包文件
         if (requiredFile.startsWith(PathPrefix.NODE_MODULES)) {
-            const fullPath = '/' + curQ.slice(2).join('/');
+            //从node_modules文件系统查询当前包的文件夹目录
+            const fullPath = '/' + requiredFile.split('/').slice(2).join('/');
             const module = findInMap(fs.modules, (i) => fullPath.startsWith(i.realpath));
             dirs = module.dirs;
             filePath = fullPath.slice(module.realpath.length);
             prefix = PathPrefix.NODE_MODULES + module.realpath;
         }
         else {
+            //使用src的文件夹目录
             dirs = fs.source;
             filePath = requiredFile.slice(PathPrefix.SRC.length);
             prefix = PathPrefix.SRC;
         }
+        if (filePath.startsWith('/'))
+            filePath = filePath.slice(1);
+        //根据上一步的结论查找最终文件绝对路径
         const fileRealPath = findFile(filePath, dirs);
-        return prefix + fileRealPath;
+        return prefix + '/' + fileRealPath;
     }
     else {
-        const isInPackage = (requiredModule, packageName) => {
+        //说明请求的是一个第三方包的文件
+        const belongToPackage = (requiredModule, packageName) => {
             return packageName === requiredModule || requiredModule.startsWith(packageName + '/');
         };
-        //认为是第三方库
         let targetModule;
+        //判断请求者是否是src中的文件
         if (curPath.startsWith(PathPrefix.SRC))
-            targetModule = findInMap(fs.modules, (item) => isInPackage(requiredModule, item.packageName) && item.isRoot);
+            //则获取到node_modules文件系统中包名相同且被项目直接依赖的包
+            targetModule = findInMap(fs.modules, (item) => belongToPackage(requiredModule, item.packageName) && item.isRoot);
         else {
+            //则获取当前请求者所在的包，从这个包的依赖包中获取请求的包
             //例如 requiredMoudule object-assign,
             //curPath /$$NODE_MODULES/react@16.14.0/node_modules/react/cjs/react.development.js
             const _curPath = '/' + curPath.split('/').slice(2).join('/');
             const module = findInMap(fs.modules, (i) => _curPath.startsWith(i.realpath));
-            const dependancyModule = module.dependancyModules.find((i) => isInPackage(requiredModule, i.packageName)) ||
-                (isInPackage(requiredModule, module.packageName) && module);
+            const dependancyModule = module.dependancyModules.find((i) => belongToPackage(requiredModule, i.packageName)) ||
+                (belongToPackage(requiredModule, module.packageName) && module);
             targetModule = fs.modules[dependancyModule.realpath];
         }
+        //根据上一步中得到的包，再具体计算请求的文件的绝对路径
         if (requiredModule === targetModule.packageName) {
             const packageContent = targetModule.dirs.find((i) => i.name === 'package.json').content;
             const packageObj = JSON.parse(packageContent);
@@ -118,14 +150,14 @@ export function calculateAbsolutePath(requiredModule, curPath, fs) {
                 (typeof packageObj.browser === 'string' ? packageObj.browser : '') ||
                 packageObj.main ||
                 'index.js';
-            main = main.startsWith('/') ? main : '/' + main;
+            main = main.startsWith('./') ? main.slice(2) : main.startsWith('/') ? main.slice(1) : main;
             const realpath = findFile(main, targetModule.dirs);
-            return PathPrefix.NODE_MODULES + targetModule.realpath + realpath;
+            return PathPrefix.NODE_MODULES + targetModule.realpath + '/' + realpath;
         }
         else {
-            const moduleFile = requiredModule.slice(targetModule.packageName.length);
+            const moduleFile = requiredModule.slice(targetModule.packageName.length + 1);
             const fileRealPath = findFile(moduleFile, targetModule.dirs);
-            return PathPrefix.NODE_MODULES + targetModule.realpath + fileRealPath;
+            return PathPrefix.NODE_MODULES + targetModule.realpath + '/' + fileRealPath;
         }
     }
 }

@@ -1,9 +1,6 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import Script from 'next/script';
-import './style/global.css';
-
-const inter = Inter({ subsets: ['latin'] });
+import '@/style/global.css';
 
 export const metadata: Metadata = {
   title: 'Create Next App',
@@ -18,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang='en'>
       <Script src='/fonts/iconfont.js' strategy='afterInteractive'></Script>
-      <body className={inter.className}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

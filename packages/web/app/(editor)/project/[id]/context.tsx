@@ -63,7 +63,6 @@ function useDirs(projectId): [ExtFsData, () => void] {
     console.info('Listenting on SEE', eventSource);
     eventSource.onmessage = (event) => {
       const fsData: FsData = JSON.parse(event.data);
-      console.log(fsData);
       const linkParent = (dir: FileItem) => {
         dir.children.forEach((child) => {
           child.parent = dir;

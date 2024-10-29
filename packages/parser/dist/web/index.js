@@ -74,9 +74,11 @@ export const onReady = new Promise((resolve) => {
 registerServiceWorker();
 navigator.serviceWorker.ready.then((registration) => {
     console.log('ready', navigator.serviceWorker.controller);
-    const matched = location.pathname.match(/\/api\/preview\/([^/]+)/);
-    if (matched) {
-        registration.active.postMessage({ msgType: MsgType.Init, msgData: matched[1] });
+    if (window.__preview_app) {
+        registration.active.postMessage({
+            msgType: MsgType.Init,
+            msgData: window.__preview_app
+        });
     }
     else {
         console.error('没找到应用');

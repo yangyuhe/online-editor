@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import type * as monaco from 'monaco-editor';
 import { useProjectContext } from './context';
-import { getFileFullPath } from '../../utils/path';
+import { getFileFullPath } from '@/utils/path';
 import { FileItem } from '@online-editor/parser/common/types';
 
 export default function Content() {
@@ -12,7 +12,7 @@ export default function Content() {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>(null);
   useEffect(() => {
     import('monaco-editor').then((monaco) => {
-      window.__debug_monaco = monaco;
+      // window.__debug_monaco = monaco;
       window.MonacoEnvironment.getWorkerUrl = (_moduleId: string, label: string) => {
         if (label === 'json') return '/_next/static/json.worker.js';
         if (label === 'css') return '/_next/static/css.worker.js';

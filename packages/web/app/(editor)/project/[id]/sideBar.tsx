@@ -1,4 +1,4 @@
-import Icon from '@/app/components/icon';
+import Icon from '@/components/icon';
 import React from 'react';
 import { useProjectContext } from './context';
 

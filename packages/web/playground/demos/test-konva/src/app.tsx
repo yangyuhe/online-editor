@@ -31,6 +31,7 @@ export function App() {
 
     // draw the image
     layer.draw();
+    console.log('1122');
   }, []);
   return <div id='container'></div>;
 }

@@ -18,4 +18,5 @@ export var PathPrefix;
 (function (PathPrefix) {
     PathPrefix["SRC"] = "/$$SRC";
     PathPrefix["NODE_MODULES"] = "/$$NODE_MODULES";
+    PathPrefix["PUBLIC"] = "/$$PUBLIC";
 })(PathPrefix || (PathPrefix = {}));

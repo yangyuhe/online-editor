@@ -7,22 +7,25 @@ export async function GET(request: NextRequest) {
   const project = params.get('project');
   const responseStream = new TransformStream();
   const writer = responseStream.writable.getWriter();
-  const encoder = new TextEncoder();
-  const fsData = await listFiles(
+  const fsWatcher = listFiles(
     path.resolve(process.env.APPS_DIR, project),
-    path.resolve(process.env.PLAYGROUND_DIR, 'node_modules/.pnpm')
+    path.resolve(process.env.PLAYGROUND_DIR, 'node_modules/.pnpm'),
+    (fsData) => {
+      writer
+        .write('data: ' + JSON.stringify(fsData) + '\n\n')
+        .then(() => {
+          console.log('写成功');
+        })
+        .catch((err) => {
+          console.error('写错误', err);
+          console.log('关闭fswatcher111');
+          fsWatcher.close();
+          if (!writer.closed) writer.close();
+        });
+    }
   );
 
-  writer
-    .write(encoder.encode('data: ' + JSON.stringify(fsData) + '\n\n'))
-    .then(() => {
-      console.log('写成功');
-    })
-    .catch((err) => {
-      console.error('写错误', err);
-    });
-
-  return new Response(responseStream.readable, {
+  const response = new Response(responseStream.readable, {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -32,4 +35,5 @@ export async function GET(request: NextRequest) {
       'Content-Encoding': 'none'
     }
   });
+  return response;
 }
