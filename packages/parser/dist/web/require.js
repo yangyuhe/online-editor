@@ -1,13 +1,13 @@
 import '@/common/babel-plugin';
 import * as Babel from '@babel/standalone';
 import { MsgType } from '../common/types';
-import { tunnelTask } from '.';
+import { tunnelTask } from './tunnelTask';
 /**
  * moduleRequired 模块的绝对路径
  */
 export async function loadModule(requiredModule, sw) {
-    if (!window[requiredModule]) {
-        window[requiredModule] = new Promise(async (resolve, reject) => {
+    if (!globalThis[requiredModule]) {
+        globalThis[requiredModule] = new Promise(async (resolve, reject) => {
             try {
                 if (/\.(j|t)sx$/.test(requiredModule)) {
                     const res = await import(requiredModule);
@@ -45,7 +45,7 @@ export async function loadModule(requiredModule, sw) {
             }
         });
         let finish = false;
-        window[requiredModule].finally(() => {
+        globalThis[requiredModule].finally(() => {
             finish = true;
         });
         setTimeout(() => {
@@ -53,7 +53,7 @@ export async function loadModule(requiredModule, sw) {
                 console.error(`模块${requiredModule}加载超时`);
         }, 10000);
     }
-    return window[requiredModule];
+    return globalThis[requiredModule];
 }
 function isEs6(text) {
     const es6 = text

@@ -5,7 +5,7 @@ type TreeItem = {
 
 const tree: TreeItem[] = [];
 
-window._tree = tree;
+globalThis._tree = tree;
 function findTreeNode(tree, module) {
   for (const node of tree) {
     if (node.module === module) return node;

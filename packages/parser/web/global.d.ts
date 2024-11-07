@@ -1,6 +1,6 @@
 declare let Babel: any;
 
-declare interface Window {
+declare interface globalThis {
   /**包之间的依赖关系,用于调试某个包为什么被加载 */
   _tree: any[];
   /**模拟webpack中可能用到process变量 */

@@ -127398,7 +127398,7 @@ _Mime_extensionToType = new WeakMap(), _Mime_typeToExtension = new WeakMap(), _M
 var mime = new Mime(types, types$1)._freeze();
 
 const globalSelf = self;
-//获取项目文件夹结构
+const channel = new BroadcastChannel('online_editor_channel');
 async function getClient(event) {
     const clientId = event.resultingClientId !== '' ? event.resultingClientId : event.clientId;
     try {
@@ -127406,8 +127406,6 @@ async function getClient(event) {
             includeUncontrolled: true,
             type: 'all'
         });
-        const temp = await globalSelf.clients.get(clientId);
-        console.log(temp);
         const client = clientList.find((client) => client.id === clientId);
         return client;
     }
@@ -127465,61 +127463,68 @@ function getContentByUrl(fileUrl) {
     const text = file.content;
     return text;
 }
-addEventListener('message', (evt) => {
-    const { data: { msgType, msgData, msgKey } = {} } = evt;
-    console.log('sw:', evt);
-    if (msgType === MsgType.Echo && msgKey) {
-        taskCache[msgKey].resolve(msgData);
-        return;
-    }
-    if (msgType === MsgType.Init) {
-        const appName = msgData;
-        if (!appFsData[appName] ||
-            !appFsData[appName].eventSource ||
-            appFsData[appName].eventSource.readyState === EventSource.CLOSED ||
-            !appFsData[appName].fs) {
-            if (appFsData[appName]?.eventSource) {
-                appFsData[appName].eventSource.close();
+channel.addEventListener('message', (evt) => {
+    const { data: { msgType, msgData, msgKey, from, target } = {} } = evt;
+    if (target === 'sw') {
+        if (msgType === MsgType.Echo && msgKey) {
+            taskCache[msgKey].resolve(msgData);
+            return;
+        }
+        if (msgType === MsgType.Init) {
+            const appName = msgData;
+            if (!appFsData[appName] ||
+                !appFsData[appName].eventSource ||
+                appFsData[appName].eventSource.readyState === EventSource.CLOSED ||
+                !appFsData[appName].fs) {
+                if (appFsData[appName]?.eventSource) {
+                    appFsData[appName].eventSource.close();
+                }
+                const eventSource = new EventSource('/api/sse?project=' + appName);
+                eventSource.addEventListener('message', (event) => {
+                    appFsData[appName].fs = JSON.parse(event.data);
+                    const msg = { msgType: MsgType.InitDone, from: 'sw', target: from };
+                    channel.postMessage(msg);
+                });
+                eventSource.addEventListener('error', (evt) => {
+                    console.error('sse error', evt);
+                    eventSource.close();
+                    appFsData[appName].eventSource = null;
+                });
+                appFsData[appName] = {
+                    eventSource,
+                    fs: null
+                };
             }
-            const eventSource = new EventSource('/api/sse?project=' + appName);
-            eventSource.addEventListener('message', (event) => {
-                appFsData[appName].fs = JSON.parse(event.data);
-                evt.source.postMessage({ msgType: MsgType.InitDone });
-            });
-            eventSource.addEventListener('error', (evt) => {
-                console.error('sse error', evt);
-                eventSource.close();
-                appFsData[appName].eventSource = null;
-            });
-            appFsData[appName] = {
-                eventSource,
-                fs: null
+            else {
+                const msg = { msgType: MsgType.InitDone, from: 'sw', target: from };
+                channel.postMessage(msg);
+            }
+            return;
+        }
+        if (msgType === MsgType.GetFileContent) {
+            const text = getContentByUrl(msgData);
+            const msg = { msgType: MsgType.Echo, msgKey, msgData: text, from: 'sw', target: from };
+            channel.postMessage(msg);
+            return;
+        }
+        if (msgType === MsgType.CalcuPath) {
+            //curPath  http://localhost:3000/old-react-test/$$NODE_MODULES/react@16.14.0/node_modules/react/index.js
+            //requiredModule ./cjs/react.development.js
+            const { curPath, requiredModule } = msgData;
+            const url = new URL(curPath);
+            const res = url.pathname.split('/');
+            const appName = res.splice(1, 1)[0];
+            const destFile = calculateAbsolutePath(requiredModule, res.join('/'), appFsData[appName].fs);
+            const msg = {
+                msgType: MsgType.Echo,
+                msgKey,
+                msgData: '/' + appName + destFile,
+                from: 'sw',
+                target: from
             };
+            channel.postMessage(msg);
+            return;
         }
-        else {
-            evt.source.postMessage({ msgType: MsgType.InitDone });
-        }
-        return;
-    }
-    if (msgType === MsgType.GetFileContent) {
-        const text = getContentByUrl(msgData);
-        evt.source.postMessage({ msgType: MsgType.Echo, msgKey, msgData: text });
-        return;
-    }
-    if (msgType === MsgType.CalcuPath) {
-        //curPath  http://localhost:3000/old-react-test/$$NODE_MODULES/react@16.14.0/node_modules/react/index.js
-        //requiredModule ./cjs/react.development.js
-        const { curPath, requiredModule } = msgData;
-        const url = new URL(curPath);
-        const res = url.pathname.split('/');
-        const appName = res.splice(1, 1)[0];
-        const destFile = calculateAbsolutePath(requiredModule, res.join('/'), appFsData[appName].fs);
-        evt.source.postMessage({
-            msgType: MsgType.Echo,
-            msgKey,
-            msgData: '/' + appName + destFile
-        });
-        return;
     }
 });
 /**
@@ -127536,7 +127541,8 @@ async function tunnelTask(msgType, msgData, event) {
         return taskCache[msgKey].p;
     const p = new Promise(async (resolve, reject) => {
         const client = await getClient(event);
-        client.postMessage({ msgType, msgData, msgKey });
+        const msg = { msgType, msgData, msgKey, target: client.url, from: 'sw' };
+        channel.postMessage(msg);
         taskCache[msgKey] = {
             p,
             resolve,
@@ -127564,6 +127570,19 @@ async function respond(event) {
         if (url.pathname.includes(PathPrefix.PUBLIC)) {
             const appName = new URL(request.referrer).pathname.split('/').pop();
             const content = getContentByUrl(request.url.replace(PathPrefix.PUBLIC, '/' + appName + '/$$SRC/public'));
+            return new Response(content, {
+                headers: {
+                    'Content-Type': url.pathname.match(/\.(t|j)sx?$/)
+                        ? 'application/javascript'
+                        : mime.getType(url.pathname)
+                }
+            });
+        }
+        if (url.search === '?type=worker') {
+            const content = `
+      import "/worker.js"
+      import("${url.pathname}");
+      `;
             return new Response(content, {
                 headers: {
                     'Content-Type': url.pathname.match(/\.(t|j)sx?$/)

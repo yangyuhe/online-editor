@@ -22,6 +22,21 @@ export default [
     context: 'this'
   },
   {
+    input: './dist/web/worker.js',
+    plugins: [
+      nodeResolve(),
+      commonjs(),
+      alias({
+        entries: [{ find: '@', replacement: distDir }]
+      })
+    ],
+    output: {
+      file: './dist/web/worker-bundle.js',
+      format: 'es'
+    },
+    context: 'this'
+  },
+  {
     input: './dist/sw/index.js',
     plugins: [
       nodeResolve(),

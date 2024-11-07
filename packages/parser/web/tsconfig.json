@@ -2,11 +2,13 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "lib": ["esnext", "DOM"],
-    "outDir": "../dist/web"
+    "outDir": "../dist/web",
+    "types": []
   },
   "references": [
     {
       "path": "../common"
     }
-  ]
+  ],
+  "exclude": ["@types/node"]
 }

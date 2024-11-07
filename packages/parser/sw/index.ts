@@ -6,7 +6,7 @@ import mime from 'mime';
 
 const globalSelf = self as unknown as ServiceWorkerGlobalScope;
 
-//获取项目文件夹结构
+const channel = new BroadcastChannel('online_editor_channel');
 
 async function getClient(event: FetchEvent) {
   const clientId = event.resultingClientId !== '' ? event.resultingClientId : event.clientId;
@@ -85,63 +85,69 @@ function getContentByUrl(fileUrl: string) {
   const text = file.content;
   return text;
 }
-addEventListener('message', (evt: MessageEvent<Msg>) => {
-  const { data: { msgType, msgData, msgKey } = {} } = evt;
-  console.log('sw:', evt);
-
-  if (msgType === MsgType.Echo && msgKey) {
-    taskCache[msgKey].resolve(msgData);
-    return;
-  }
-  if (msgType === MsgType.Init) {
-    const appName = msgData;
-    if (
-      !appFsData[appName] ||
-      !appFsData[appName].eventSource ||
-      appFsData[appName].eventSource.readyState === EventSource.CLOSED ||
-      !appFsData[appName].fs
-    ) {
-      if (appFsData[appName]?.eventSource) {
-        appFsData[appName].eventSource.close();
-      }
-      const eventSource = new EventSource('/api/sse?project=' + appName);
-      eventSource.addEventListener('message', (event) => {
-        appFsData[appName].fs = JSON.parse(event.data);
-        evt.source.postMessage({ msgType: MsgType.InitDone } as Msg);
-      });
-      eventSource.addEventListener('error', (evt) => {
-        console.error('sse error', evt);
-        eventSource.close();
-        appFsData[appName].eventSource = null;
-      });
-      appFsData[appName] = {
-        eventSource,
-        fs: null
-      };
-    } else {
-      evt.source.postMessage({ msgType: MsgType.InitDone } as Msg);
+channel.addEventListener('message', (evt: MessageEvent<Msg>) => {
+  const { data: { msgType, msgData, msgKey, from, target } = {} } = evt;
+  if (target === 'sw') {
+    if (msgType === MsgType.Echo && msgKey) {
+      taskCache[msgKey].resolve(msgData);
+      return;
     }
-    return;
-  }
-  if (msgType === MsgType.GetFileContent) {
-    const text = getContentByUrl(msgData);
-    evt.source.postMessage({ msgType: MsgType.Echo, msgKey, msgData: text } as Msg);
-    return;
-  }
-  if (msgType === MsgType.CalcuPath) {
-    //curPath  http://localhost:3000/old-react-test/$$NODE_MODULES/react@16.14.0/node_modules/react/index.js
-    //requiredModule ./cjs/react.development.js
-    const { curPath, requiredModule } = msgData;
-    const url = new URL(curPath);
-    const res = url.pathname.split('/');
-    const appName = res.splice(1, 1)[0];
-    const destFile = calculateAbsolutePath(requiredModule, res.join('/'), appFsData[appName].fs);
-    evt.source.postMessage({
-      msgType: MsgType.Echo,
-      msgKey,
-      msgData: '/' + appName + destFile
-    } as Msg);
-    return;
+    if (msgType === MsgType.Init) {
+      const appName = msgData;
+      if (
+        !appFsData[appName] ||
+        !appFsData[appName].eventSource ||
+        appFsData[appName].eventSource.readyState === EventSource.CLOSED ||
+        !appFsData[appName].fs
+      ) {
+        if (appFsData[appName]?.eventSource) {
+          appFsData[appName].eventSource.close();
+        }
+        const eventSource = new EventSource('/api/sse?project=' + appName);
+        eventSource.addEventListener('message', (event) => {
+          appFsData[appName].fs = JSON.parse(event.data);
+          const msg: Msg = { msgType: MsgType.InitDone, from: 'sw', target: from };
+          channel.postMessage(msg);
+        });
+        eventSource.addEventListener('error', (evt) => {
+          console.error('sse error', evt);
+          eventSource.close();
+          appFsData[appName].eventSource = null;
+        });
+        appFsData[appName] = {
+          eventSource,
+          fs: null
+        };
+      } else {
+        const msg: Msg = { msgType: MsgType.InitDone, from: 'sw', target: from };
+        channel.postMessage(msg);
+      }
+      return;
+    }
+    if (msgType === MsgType.GetFileContent) {
+      const text = getContentByUrl(msgData);
+      const msg: Msg = { msgType: MsgType.Echo, msgKey, msgData: text, from: 'sw', target: from };
+      channel.postMessage(msg);
+      return;
+    }
+    if (msgType === MsgType.CalcuPath) {
+      //curPath  http://localhost:3000/old-react-test/$$NODE_MODULES/react@16.14.0/node_modules/react/index.js
+      //requiredModule ./cjs/react.development.js
+      const { curPath, requiredModule } = msgData;
+      const url = new URL(curPath);
+      const res = url.pathname.split('/');
+      const appName = res.splice(1, 1)[0];
+      const destFile = calculateAbsolutePath(requiredModule, res.join('/'), appFsData[appName].fs);
+      const msg: Msg = {
+        msgType: MsgType.Echo,
+        msgKey,
+        msgData: '/' + appName + destFile,
+        from: 'sw',
+        target: from
+      };
+      channel.postMessage(msg);
+      return;
+    }
   }
 });
 
@@ -158,7 +164,8 @@ async function tunnelTask<Type>(msgType: MsgType, msgData: any, event: FetchEven
   if (taskCache[msgKey]) return taskCache[msgKey].p;
   const p = new Promise<Type>(async (resolve, reject) => {
     const client = await getClient(event);
-    client.postMessage({ msgType, msgData, msgKey } as Msg);
+    const msg: Msg = { msgType, msgData, msgKey, target: client.url, from: 'sw' };
+    channel.postMessage(msg);
     taskCache[msgKey] = {
       p,
       resolve,
@@ -195,6 +202,20 @@ async function respond(event: FetchEvent) {
         request.url.replace(PathPrefix.PUBLIC, '/' + appName + '/$$SRC/public')
       );
 
+      return new Response(content, {
+        headers: {
+          'Content-Type': url.pathname.match(/\.(t|j)sx?$/)
+            ? 'application/javascript'
+            : mime.getType(url.pathname)
+        }
+      });
+    }
+
+    if (url.search === '?type=worker') {
+      const content = `
+      import "/worker.js"
+      import("${url.pathname}");
+      `;
       return new Response(content, {
         headers: {
           'Content-Type': url.pathname.match(/\.(t|j)sx?$/)

@@ -50,6 +50,9 @@ export type Msg = {
   msgData?: any;
   /**消息唯一标识，用于获取消息响应结果的 */
   msgKey?: string;
+  /**client的url,worker中使用这个标识来判断消息的发送目标 */
+  from: 'sw' | (string & {});
+  target: 'sw' | (string & {});
 };
 
 export enum PathPrefix {

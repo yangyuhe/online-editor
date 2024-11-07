@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "用于模块编译",
   "scripts": {
-    "build": "rm -rf dist && tsc -b web sw server && rollup --config && cp dist/web/bundle.js ../web/public/web.js && cp dist/sw/bundle.js ../web/public/sw.js",
+    "build": "rm -rf dist && tsc -b web sw server && rollup --config && cp dist/web/bundle.js ../web/public/web.js && cp dist/sw/bundle.js ../web/public/sw.js && cp dist/web/worker-bundle.js ../web/public/worker.js",
     "test": "jest"
   },
   "bin": {

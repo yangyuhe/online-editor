@@ -1,8 +1,9 @@
-window.process = {
+globalThis.process = globalThis.process || {};
+Object.assign(globalThis.process, {
     env: {
         NODE_ENV: 'development'
     }
-};
+});
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -127284,12 +127285,32 @@ function es6ImportAbsolute() {
 }
 Babel.registerPlugin('es6ImportAbsolute', es6ImportAbsolute);
 
+const taskCache = {};
+async function tunnelTask(msgType, msgData, sw) {
+    const msgKey = Date.now() + '.' + Math.random();
+    if (taskCache[msgKey])
+        return taskCache[msgKey].p;
+    let resolve, reject;
+    const p = new Promise(async (_resolve, _reject) => {
+        resolve = _resolve;
+        reject = _reject;
+    });
+    const msg = { msgType, msgData, msgKey, target: 'sw', from: globalThis.location.href };
+    sw.postMessage(msg);
+    taskCache[msgKey] = {
+        p,
+        resolve,
+        reject
+    };
+    return p;
+}
+
 /**
  * moduleRequired 模块的绝对路径
  */
 async function loadModule(requiredModule, sw) {
-    if (!window[requiredModule]) {
-        window[requiredModule] = new Promise(async (resolve, reject) => {
+    if (!globalThis[requiredModule]) {
+        globalThis[requiredModule] = new Promise(async (resolve, reject) => {
             try {
                 if (/\.(j|t)sx$/.test(requiredModule)) {
                     const res = await import(requiredModule);
@@ -127327,7 +127348,7 @@ async function loadModule(requiredModule, sw) {
             }
         });
         let finish = false;
-        window[requiredModule].finally(() => {
+        globalThis[requiredModule].finally(() => {
             finish = true;
         });
         setTimeout(() => {
@@ -127335,7 +127356,7 @@ async function loadModule(requiredModule, sw) {
                 console.error(`模块${requiredModule}加载超时`);
         }, 10000);
     }
-    return window[requiredModule];
+    return globalThis[requiredModule];
 }
 function isEs6(text) {
     const es6 = text
@@ -127344,9 +127365,10 @@ function isEs6(text) {
     return es6;
 }
 
+const channel = new BroadcastChannel('online_editor_channel');
 //注册serviceworker
 const registerServiceWorker = async () => {
-    if ('serviceWorker' in window.navigator) {
+    if ('serviceWorker' in globalThis.navigator) {
         try {
             await navigator.serviceWorker.register('/sw.js');
         }
@@ -127355,73 +127377,65 @@ const registerServiceWorker = async () => {
         }
     }
 };
-const taskCache = {};
-async function tunnelTask(msgType, msgData, sw) {
-    const msgKey = Date.now() + '.' + Math.random();
-    if (taskCache[msgKey])
-        return taskCache[msgKey].p;
-    let resolve, reject;
-    const p = new Promise(async (_resolve, _reject) => {
-        resolve = _resolve;
-        reject = _reject;
-    });
-    sw.postMessage({ msgType, msgData, msgKey });
-    taskCache[msgKey] = {
-        p,
-        resolve,
-        reject
-    };
-    return p;
-}
-navigator.serviceWorker.onmessage = async (event) => {
-    const { data: { msgType, msgData, msgKey } = {} } = event;
-    if (msgType === MsgType.Echo && msgKey) {
-        taskCache[msgKey].resolve(msgData);
-        return;
-    }
-    if (msgType === MsgType.InitDone) {
-        onReadyResolve();
-        return;
-    }
-    const registration = await navigator.serviceWorker.ready;
-    if (msgType === MsgType.GetModule) {
-        try {
-            await loadModule(msgData, registration.active);
-            const moduleExports = await window[msgData];
-            registration.active.postMessage({
-                msgType: MsgType.Echo,
-                msgData: {
-                    data: Object.keys(moduleExports),
-                    code: 0
-                },
-                msgKey: msgKey
-            });
+channel.addEventListener('message', async (event) => {
+    const { data: { msgType, msgData, msgKey, from, target } } = event;
+    if (target === location.href && from === 'sw') {
+        if (msgType === MsgType.Echo && msgKey) {
+            taskCache[msgKey].resolve(msgData);
+            return;
         }
-        catch (err) {
-            registration.active.postMessage({
-                msgType: MsgType.Echo,
-                msgData: {
-                    data: null,
-                    code: -1,
-                    err
-                },
-                msgKey: msgKey
-            });
+        if (msgType === MsgType.InitDone) {
+            onReadyResolve();
+            return;
+        }
+        if (msgType === MsgType.GetModule) {
+            try {
+                await loadModule(msgData, channel);
+                const moduleExports = await globalThis[msgData];
+                const msg = {
+                    msgType: MsgType.Echo,
+                    msgData: {
+                        data: Object.keys(moduleExports),
+                        code: 0
+                    },
+                    msgKey: msgKey,
+                    from: target,
+                    target: 'sw'
+                };
+                channel.postMessage(msg);
+            }
+            catch (err) {
+                const msg = {
+                    msgType: MsgType.Echo,
+                    msgData: {
+                        data: null,
+                        code: -1,
+                        err
+                    },
+                    msgKey: msgKey,
+                    from: target,
+                    target: 'sw'
+                };
+                channel.postMessage(msg);
+            }
         }
     }
-};
+});
 let onReadyResolve;
 const onReady = new Promise((resolve) => {
     onReadyResolve = resolve;
 });
 registerServiceWorker();
-navigator.serviceWorker.ready.then((registration) => {
+navigator.serviceWorker.ready.then(() => {
     console.log('ready', navigator.serviceWorker.controller);
-    if (window.__preview_app) {
-        registration.active.postMessage({
+    if (globalThis.__preview_app) {
+        const msg = {
             msgType: MsgType.Init,
-            msgData: window.__preview_app
-        });
+            msgData: globalThis.__preview_app,
+            from: location.href,
+            target: 'sw'
+        };
+        channel.postMessage(msg);
     }
     else {
         console.error('没找到应用');
@@ -127430,5 +127444,12 @@ navigator.serviceWorker.ready.then((registration) => {
 navigator.serviceWorker.oncontrollerchange = () => {
     console.log('oncontrollerchange', navigator.serviceWorker.controller);
 };
+//代理Worker
+class T extends globalThis.Worker {
+    constructor(url, option) {
+        super(url + '?type=worker', option);
+    }
+}
+globalThis.Worker = T;
 
-export { onReady, tunnelTask };
+export { onReady };
