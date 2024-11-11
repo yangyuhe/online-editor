@@ -11,6 +11,9 @@ channel.addEventListener('message', async (event) => {
             taskCache[msgKey].resolve(msgData);
             return;
         }
+        if (msgType === MsgType.InitDone) {
+            return;
+        }
         if (msgType === MsgType.GetModule) {
             try {
                 await loadModule(msgData, channel);

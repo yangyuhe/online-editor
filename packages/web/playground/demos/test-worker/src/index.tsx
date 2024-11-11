@@ -3,6 +3,7 @@ const myWorker = new Worker(new URL('./sw/index.ts', import.meta.url), {
   name: 'test-worker'
 });
 myWorker.postMessage('hello1');
-
-const hello = 'hello';
-const world = hello;
+myWorker.addEventListener('message', (evt) => {
+  console.log('---');
+  console.log(evt);
+});

@@ -4,6 +4,7 @@ import { Msg, MsgType } from '../common/types.js';
 import { taskCache } from './tunnelTask';
 
 const channel = new BroadcastChannel('online_editor_channel');
+
 channel.addEventListener('message', async (event) => {
   const data: Msg = event.data;
   const { msgType, msgData, msgKey, from, target } = data;
@@ -12,6 +13,11 @@ channel.addEventListener('message', async (event) => {
       taskCache[msgKey].resolve(msgData);
       return;
     }
+
+    if (msgType === MsgType.InitDone) {
+      return;
+    }
+
     if (msgType === MsgType.GetModule) {
       try {
         await loadModule(msgData, channel);

@@ -84,7 +84,8 @@ navigator.serviceWorker.oncontrollerchange = () => {
 //代理Worker
 class T extends globalThis.Worker {
     constructor(url, option) {
-        super(url + '?type=worker', option);
+        const _url = typeof url === 'string' ? url : url.toString();
+        super(_url + '?type=worker', option);
     }
 }
 globalThis.Worker = T;

@@ -3,14 +3,16 @@ function es6ImportHash() {
     const visitor = {
         ImportDeclaration(path, state) {
             const val = path.node.source.value;
+            const query = state.opts.query;
             if ((val.startsWith('./') || val.startsWith('../')) && !val.endsWith('.css')) {
-                path.node.source.value = val + state.opts.query;
+                path.node.source.value = val + query;
             }
         },
         Import(path, state) {
             const val = path.parent.arguments[0].value;
+            const query = state.opts.query;
             if ((val.startsWith('./') || val.startsWith('../')) && !val.endsWith('.css')) {
-                path.parent.arguments[0].value = val + state.opts.query;
+                path.parent.arguments[0].value = val + query;
             }
         }
     };

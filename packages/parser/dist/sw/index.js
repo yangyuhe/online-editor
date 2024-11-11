@@ -1,6 +1,8 @@
 import * as Babel from '@babel/standalone';
 import '@/common/babel-plugin';
-import { calculateAbsolutePath, getFileContent } from '@/common/util';
+import { getFileData, calculateAbsolutePath
+// extractFromFsData
+ } from '@/common/util';
 import { MsgType, PathPrefix } from '../common/types';
 import mime from 'mime';
 const globalSelf = self;
@@ -55,6 +57,7 @@ function isCommonjs(text) {
 }
 const taskCache = {};
 const appFsData = {};
+// const appTinyFsData: { [appName: string]: FsData } = {};
 /**
  *
  * @param fileUrl 如http://localhost:3000/old-react-test/$$NODE_MODULES/react@16.14.0/node_modules/react/index.js
@@ -63,11 +66,10 @@ function getContentByUrl(fileUrl) {
     const url = new URL(fileUrl);
     const res = url.pathname.split('/');
     const appName = res[1];
-    res.splice(1, 1);
-    const filePath = res.join('/');
-    const file = getFileContent(appFsData[appName].fs, filePath);
-    const text = file.content;
-    return text;
+    res[1] = null;
+    const filePath = res.filter((item) => item !== null).join('/');
+    const file = getFileData(appFsData[appName].fs, filePath);
+    return file.content;
 }
 channel.addEventListener('message', (evt) => {
     const { data: { msgType, msgData, msgKey, from, target } = {} } = evt;
@@ -87,8 +89,16 @@ channel.addEventListener('message', (evt) => {
                 }
                 const eventSource = new EventSource('/api/sse?project=' + appName);
                 eventSource.addEventListener('message', (event) => {
-                    appFsData[appName].fs = JSON.parse(event.data);
-                    const msg = { msgType: MsgType.InitDone, from: 'sw', target: from };
+                    const fs = JSON.parse(event.data);
+                    appFsData[appName].fs = fs;
+                    // const tinyFs = extractFromFsData(fs);
+                    // appTinyFsData[appName] = tinyFs;
+                    const msg = {
+                        msgType: MsgType.InitDone,
+                        from: 'sw',
+                        target: from
+                        // msgData: tinyFs
+                    };
                     channel.postMessage(msg);
                 });
                 eventSource.addEventListener('error', (evt) => {
@@ -102,7 +112,12 @@ channel.addEventListener('message', (evt) => {
                 };
             }
             else {
-                const msg = { msgType: MsgType.InitDone, from: 'sw', target: from };
+                const msg = {
+                    msgType: MsgType.InitDone,
+                    from: 'sw',
+                    target: from
+                    // msgData: appTinyFsData[appName]
+                };
                 channel.postMessage(msg);
             }
             return;
@@ -226,6 +241,7 @@ async function respond(event) {
                         ? ['es6ImportHash', { query: url.search }]
                         : null,
                     ['es6ImportAbsolute', { fs: appFsData[appName].fs, referrer: url.pathname }]
+                    // ['workerTransform', { referPath: url.pathname }]
                 ].filter(Boolean)
             });
             code = res.code;
@@ -255,7 +271,10 @@ async function respond(event) {
                 });
             }
         }
-        return fetch(request);
+        return new Response(text, {
+            status: 200,
+            headers: { 'Content-Type': 'text/javascript' }
+        });
     }
     catch (error) {
         console.error(error);

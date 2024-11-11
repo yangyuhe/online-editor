@@ -1,4 +1,3 @@
-/// <reference types="node" />
 import * as fs from 'node:fs';
 import { FsData } from '../common/types';
 /**

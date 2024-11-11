@@ -9,7 +9,7 @@ export function findInMap(m, fn) {
 /**获取一个源文件的内容
  * path 例如/$$SRC/index.ts , /$$NODE_MODULES/react@16.14.0/node_modules/react/index.js
  */
-export function getFileContent(fs, path) {
+export function getFileData(fs, path) {
     let files;
     let slices = [];
     if (path.startsWith(PathPrefix.NODE_MODULES)) {
@@ -17,6 +17,8 @@ export function getFileContent(fs, path) {
         //path 例如 /$$NODE_MODULES/react-dom@18.3.1_react@16.14.0/node_modules/react-dom/index.js
         const key = path.slice(PathPrefix.NODE_MODULES.length);
         const module = findInMap(fs.modules, (item) => key.startsWith(item.realpath));
+        if (!module)
+            return null;
         files = module.dirs;
         slices = key.slice(module.realpath.length).split('/').slice(1);
     }
@@ -27,6 +29,8 @@ export function getFileContent(fs, path) {
     while (true) {
         const top = slices.shift();
         const child = files.find((file) => file.name === top);
+        if (!child)
+            return null;
         if (slices.length === 0) {
             return child;
         }
@@ -37,7 +41,7 @@ export function getFileContent(fs, path) {
  * 从dirs列表以及子文件夹中查找路径为filePath的文件
  * @param filePath 不含/开头的路径
  * @param dirs
- * @returns 返回值不包含/开头
+ * @returns 返回值pathname不包含/开头
  */
 function findFile(filePath, dirs) {
     const fileSlices = filePath.split('/');
@@ -48,7 +52,7 @@ function findFile(filePath, dirs) {
                 //import "xx" 相当于 import "xx/index.js"或者import "xx/index.ts"
                 const file = dir.children.find((j) => j.name.match(new RegExp('^index.(j|t)sx?$')));
                 fileSlices.push(file.name);
-                return fileSlices.join('/');
+                return { pathname: fileSlices.join('/'), content: file.content };
             }
             else {
                 dirs = dir.children;
@@ -58,7 +62,7 @@ function findFile(filePath, dirs) {
         let file = dirs.find((j) => j.name === fileSlices[i] && j.type === 'file');
         if (file) {
             if (i === fileSlices.length - 1)
-                return fileSlices.join('/');
+                return { pathname: fileSlices.join('/'), content: file.content };
             else
                 throw new Error('找不到匹配的文件路径:' + filePath);
         }
@@ -67,7 +71,7 @@ function findFile(filePath, dirs) {
             file = dirs.find((j) => j.name.match(new RegExp('^' + fileSlices[i] + '.(j|t)sx?$')));
             if (file) {
                 fileSlices[fileSlices.length - 1] = file.name;
-                return fileSlices.join('/');
+                return { pathname: fileSlices.join('/'), content: file.content };
             }
             else
                 throw new Error('找不到匹配的文件路径:' + filePath);
@@ -93,10 +97,16 @@ function flatPath(relativePath, basePath) {
  * @returns
  */
 export function calculateAbsolutePath(requiredModule, curPath, fs) {
-    if (requiredModule.startsWith('./') || requiredModule.startsWith('../')) {
+    const file = getRequiredFile(requiredModule, curPath, fs);
+    return file.pathname;
+}
+export function getRequiredFile(requiredModule, curPath, fs) {
+    let requiredFile = requiredModule;
+    if (requiredModule.startsWith('./') || requiredModule.startsWith('../'))
         //说明请求的是当前包中的文件或者是非包文件（即src文件）
         //requiredFile 例如/$$NODE_MODULES/react@16.14.0/node_modules/react/cjs/react.development.js
-        const requiredFile = flatPath(requiredModule, curPath);
+        requiredFile = flatPath(requiredModule, curPath);
+    if (requiredFile.startsWith(PathPrefix.NODE_MODULES) || requiredFile.startsWith(PathPrefix.SRC)) {
         let dirs;
         let filePath;
         let prefix;
@@ -118,8 +128,8 @@ export function calculateAbsolutePath(requiredModule, curPath, fs) {
         if (filePath.startsWith('/'))
             filePath = filePath.slice(1);
         //根据上一步的结论查找最终文件绝对路径
-        const fileRealPath = findFile(filePath, dirs);
-        return prefix + '/' + fileRealPath;
+        const realFile = findFile(filePath, dirs);
+        return { pathname: prefix + '/' + realFile.pathname, content: realFile.content };
     }
     else {
         //说明请求的是一个第三方包的文件
@@ -151,13 +161,41 @@ export function calculateAbsolutePath(requiredModule, curPath, fs) {
                 packageObj.main ||
                 'index.js';
             main = main.startsWith('./') ? main.slice(2) : main.startsWith('/') ? main.slice(1) : main;
-            const realpath = findFile(main, targetModule.dirs);
-            return PathPrefix.NODE_MODULES + targetModule.realpath + '/' + realpath;
+            const realFile = findFile(main, targetModule.dirs);
+            return {
+                pathname: PathPrefix.NODE_MODULES + targetModule.realpath + '/' + realFile.pathname,
+                content: realFile.content
+            };
         }
         else {
             const moduleFile = requiredModule.slice(targetModule.packageName.length + 1);
-            const fileRealPath = findFile(moduleFile, targetModule.dirs);
-            return PathPrefix.NODE_MODULES + targetModule.realpath + '/' + fileRealPath;
+            const realFile = findFile(moduleFile, targetModule.dirs);
+            return {
+                pathname: PathPrefix.NODE_MODULES + targetModule.realpath + '/' + realFile.pathname,
+                content: realFile.content
+            };
         }
     }
+}
+/**去除文件信息，只保留路径信息 */
+export function extractFromFsData(fs) {
+    const tinyFs = {
+        source: [],
+        modules: {}
+    };
+    const recursive = (item) => {
+        const tinyItem = { ...item, content: '', children: [] };
+        item.children.forEach((i) => {
+            tinyItem.children.push(recursive(i));
+        });
+        return tinyItem;
+    };
+    tinyFs.source = fs.source.map((item) => recursive(item));
+    for (const key in fs.modules) {
+        tinyFs.modules[key] = {
+            ...fs.modules[key],
+            dirs: fs.modules[key].dirs.map((i) => recursive(i))
+        };
+    }
+    return tinyFs;
 }

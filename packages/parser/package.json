@@ -14,12 +14,10 @@
   "license": "ISC",
   "dependencies": {
     "@babel/standalone": "^7.24.6",
-    "mime": "^4.0.4"
+    "mime": "^4.0.4",
+    "@babel/types": "^7.25.6"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.6",
-    "@babel/preset-env": "^7.24.6",
-    "@babel/preset-typescript": "^7.24.6",
     "@jest/globals": "^29.7.0",
     "@rollup/plugin-alias": "^5.1.0",
     "@rollup/plugin-commonjs": "^26.0.1",

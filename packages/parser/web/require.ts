@@ -16,14 +16,19 @@ export async function loadModule(requiredModule: string, sw: BroadcastChannel) {
           return;
         }
 
-        const text = await tunnelTask(MsgType.GetFileContent, requiredModule, sw);
+        let text = await tunnelTask(MsgType.GetFileContent, requiredModule, sw);
+        text = Babel.transform(text, {
+          plugins: [['workerTransform', { referPath: requiredModule }]]
+        }).code;
 
         if (isEs6(text)) {
           const res = await import(requiredModule);
           resolve(res);
           return;
         } else {
-          const code = Babel.transform(text, { plugins: ['commonAsync'] }).code;
+          const code = Babel.transform(text, {
+            plugins: ['commonAsync']
+          }).code;
           const AsyncFunction = (async () => {}).constructor;
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           //@ts-ignore

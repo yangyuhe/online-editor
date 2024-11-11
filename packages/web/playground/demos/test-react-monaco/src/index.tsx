@@ -5,6 +5,24 @@ import * as monaco from 'monaco-editor';
 import metadata from 'monaco-editor/esm/metadata';
 import './index.css';
 
+self.MonacoEnvironment = {
+  getWorkerUrl: function (moduleId, label) {
+    if (label === 'json') {
+      return '/test-react-monaco/$$NODE_MODULES/monaco-editor@0.46.0/node_modules/monaco-editor/esm/vs/language/json/json.worker.js';
+    }
+    if (label === 'css' || label === 'scss' || label === 'less') {
+      return '/test-react-monaco/$$NODE_MODULES/monaco-editor@0.46.0/node_modules/monaco-editor/esm/vs/language/css/css.worker.js';
+    }
+    if (label === 'html' || label === 'handlebars' || label === 'razor') {
+      return '/test-react-monaco/$$NODE_MODULES/monaco-editor@0.46.0/node_modules/monaco-editor/esm/vs/language/html/html.worker.js';
+    }
+    if (label === 'typescript' || label === 'javascript') {
+      return 'monaco-editor/esm/vs/language/typescript/ts.worker.js';
+    }
+    return 'monaco-editor/esm/vs/editor/editor.worker.js';
+  }
+};
+
 console.log('metadata.languages:', metadata);
 
 // self.MonacoEnvironment = {

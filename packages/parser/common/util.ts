@@ -11,7 +11,7 @@ export function findInMap<T>(m: { [key: string]: T }, fn: (item: T) => boolean) 
 /**获取一个源文件的内容
  * path 例如/$$SRC/index.ts , /$$NODE_MODULES/react@16.14.0/node_modules/react/index.js
  */
-export function getFileContent(fs: FsData, path: string) {
+export function getFileData(fs: FsData, path: string) {
   let files: FileItem[];
   let slices = [];
   if (path.startsWith(PathPrefix.NODE_MODULES)) {
@@ -19,6 +19,7 @@ export function getFileContent(fs: FsData, path: string) {
     //path 例如 /$$NODE_MODULES/react-dom@18.3.1_react@16.14.0/node_modules/react-dom/index.js
     const key = path.slice(PathPrefix.NODE_MODULES.length);
     const module = findInMap(fs.modules, (item) => key.startsWith(item.realpath));
+    if (!module) return null;
     files = module.dirs;
     slices = key.slice(module.realpath.length).split('/').slice(1);
   } else {
@@ -29,6 +30,7 @@ export function getFileContent(fs: FsData, path: string) {
   while (true) {
     const top = slices.shift();
     const child = files.find((file) => file.name === top);
+    if (!child) return null;
     if (slices.length === 0) {
       return child;
     }
@@ -39,9 +41,9 @@ export function getFileContent(fs: FsData, path: string) {
  * 从dirs列表以及子文件夹中查找路径为filePath的文件
  * @param filePath 不含/开头的路径
  * @param dirs
- * @returns 返回值不包含/开头
+ * @returns 返回值pathname不包含/开头
  */
-function findFile(filePath: string, dirs: FileItem[]) {
+function findFile(filePath: string, dirs: FileItem[]): { pathname: string; content: string } {
   const fileSlices = filePath.split('/');
   for (let i = 0; i < fileSlices.length; i++) {
     const dir = dirs.find((j) => j.name === fileSlices[i] && j.type === 'dir');
@@ -50,7 +52,7 @@ function findFile(filePath: string, dirs: FileItem[]) {
         //import "xx" 相当于 import "xx/index.js"或者import "xx/index.ts"
         const file = dir.children.find((j) => j.name.match(new RegExp('^index.(j|t)sx?$')));
         fileSlices.push(file.name);
-        return fileSlices.join('/');
+        return { pathname: fileSlices.join('/'), content: file.content };
       } else {
         dirs = dir.children;
         continue;
@@ -58,14 +60,15 @@ function findFile(filePath: string, dirs: FileItem[]) {
     }
     let file = dirs.find((j) => j.name === fileSlices[i] && j.type === 'file');
     if (file) {
-      if (i === fileSlices.length - 1) return fileSlices.join('/');
+      if (i === fileSlices.length - 1)
+        return { pathname: fileSlices.join('/'), content: file.content };
       else throw new Error('找不到匹配的文件路径:' + filePath);
     } else {
       //import "xx/a"相当于import "xx/a.jsx?"或者import "xx/a.tsx?"
       file = dirs.find((j) => j.name.match(new RegExp('^' + fileSlices[i] + '.(j|t)sx?$')));
       if (file) {
         fileSlices[fileSlices.length - 1] = file.name;
-        return fileSlices.join('/');
+        return { pathname: fileSlices.join('/'), content: file.content };
       } else throw new Error('找不到匹配的文件路径:' + filePath);
     }
   }
@@ -88,11 +91,22 @@ function flatPath(relativePath: string, basePath: string) {
  * @param fs 文件系统
  * @returns
  */
-export function calculateAbsolutePath(requiredModule: string, curPath: string, fs: FsData) {
-  if (requiredModule.startsWith('./') || requiredModule.startsWith('../')) {
+export function calculateAbsolutePath(requiredModule: string, curPath: string, fs: FsData): string {
+  const file = getRequiredFile(requiredModule, curPath, fs);
+  return file.pathname;
+}
+
+export function getRequiredFile(
+  requiredModule: string,
+  curPath: string,
+  fs: FsData
+): { pathname: string; content: string } {
+  let requiredFile = requiredModule;
+  if (requiredModule.startsWith('./') || requiredModule.startsWith('../'))
     //说明请求的是当前包中的文件或者是非包文件（即src文件）
     //requiredFile 例如/$$NODE_MODULES/react@16.14.0/node_modules/react/cjs/react.development.js
-    const requiredFile = flatPath(requiredModule, curPath);
+    requiredFile = flatPath(requiredModule, curPath);
+  if (requiredFile.startsWith(PathPrefix.NODE_MODULES) || requiredFile.startsWith(PathPrefix.SRC)) {
     let dirs: FileItem[];
     let filePath: string;
     let prefix: string;
@@ -113,8 +127,8 @@ export function calculateAbsolutePath(requiredModule: string, curPath: string, f
     if (filePath.startsWith('/')) filePath = filePath.slice(1);
 
     //根据上一步的结论查找最终文件绝对路径
-    const fileRealPath = findFile(filePath, dirs);
-    return prefix + '/' + fileRealPath;
+    const realFile = findFile(filePath, dirs);
+    return { pathname: prefix + '/' + realFile.pathname, content: realFile.content };
   } else {
     //说明请求的是一个第三方包的文件
     const belongToPackage = (requiredModule: string, packageName: string) => {
@@ -151,12 +165,41 @@ export function calculateAbsolutePath(requiredModule: string, curPath: string, f
         packageObj.main ||
         'index.js';
       main = main.startsWith('./') ? main.slice(2) : main.startsWith('/') ? main.slice(1) : main;
-      const realpath = findFile(main, targetModule.dirs);
-      return PathPrefix.NODE_MODULES + targetModule.realpath + '/' + realpath;
+      const realFile = findFile(main, targetModule.dirs);
+      return {
+        pathname: PathPrefix.NODE_MODULES + targetModule.realpath + '/' + realFile.pathname,
+        content: realFile.content
+      };
     } else {
       const moduleFile = requiredModule.slice(targetModule.packageName.length + 1);
-      const fileRealPath = findFile(moduleFile, targetModule.dirs);
-      return PathPrefix.NODE_MODULES + targetModule.realpath + '/' + fileRealPath;
+      const realFile = findFile(moduleFile, targetModule.dirs);
+      return {
+        pathname: PathPrefix.NODE_MODULES + targetModule.realpath + '/' + realFile.pathname,
+        content: realFile.content
+      };
     }
   }
+}
+
+/**去除文件信息，只保留路径信息 */
+export function extractFromFsData(fs: FsData) {
+  const tinyFs: FsData = {
+    source: [],
+    modules: {}
+  };
+  const recursive = (item: FileItem) => {
+    const tinyItem: FileItem = { ...item, content: '', children: [] };
+    item.children.forEach((i) => {
+      tinyItem.children.push(recursive(i));
+    });
+    return tinyItem;
+  };
+  tinyFs.source = fs.source.map((item) => recursive(item));
+  for (const key in fs.modules) {
+    tinyFs.modules[key] = {
+      ...fs.modules[key],
+      dirs: fs.modules[key].dirs.map((i) => recursive(i))
+    };
+  }
+  return tinyFs;
 }
