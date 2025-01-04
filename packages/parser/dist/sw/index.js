@@ -90,11 +90,12 @@ channel.addEventListener('message', (evt) => {
                 const eventSource = new EventSource('/api/sse?project=' + appName);
                 eventSource.addEventListener('message', (event) => {
                     const fs = JSON.parse(event.data);
+                    const msgType = appFsData[appName].fs ? MsgType.Update : MsgType.InitDone;
                     appFsData[appName].fs = fs;
                     // const tinyFs = extractFromFsData(fs);
                     // appTinyFsData[appName] = tinyFs;
                     const msg = {
-                        msgType: MsgType.InitDone,
+                        msgType,
                         from: 'sw',
                         target: from
                         // msgData: tinyFs
@@ -237,10 +238,10 @@ async function respond(event) {
             const res = Babel.transform(text, {
                 presets: ['jsx'],
                 plugins: [
+                    ['es6ImportAbsolute', { fs: appFsData[appName].fs, referrer: url.pathname }],
                     url.search && !url.pathname.includes('/node_modules')
                         ? ['es6ImportHash', { query: url.search }]
-                        : null,
-                    ['es6ImportAbsolute', { fs: appFsData[appName].fs, referrer: url.pathname }]
+                        : null
                     // ['workerTransform', { referPath: url.pathname }]
                 ].filter(Boolean)
             });

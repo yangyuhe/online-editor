@@ -33,5 +33,10 @@ export function App() {
     layer.draw();
     console.log('1122');
   }, []);
-  return <div id='container'></div>;
+  return (
+    <>
+      <div id='container'></div>
+      <div>hello</div>
+    </>
+  );
 }

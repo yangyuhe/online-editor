@@ -11,8 +11,8 @@ export default function Project(props: { params: { app: string } }) {
       {`
       window.__preview_app = "${app}";
       import('/web.js').then((res) => {
-    res.onReady.then(() => {
-      import('/${app}/$$SRC/src/index.tsx');
+    res.onReady(() => {
+      import('/${app}/$$SRC/src/index.tsx?'+Date.now());
     });
   });`}
     </Script>

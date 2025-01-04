@@ -115,12 +115,13 @@ channel.addEventListener('message', (evt) => {
 
         eventSource.addEventListener('message', (event) => {
           const fs: FsData = JSON.parse(event.data);
+          const msgType: MsgType = appFsData[appName].fs ? MsgType.Update : MsgType.InitDone;
           appFsData[appName].fs = fs;
           // const tinyFs = extractFromFsData(fs);
           // appTinyFsData[appName] = tinyFs;
 
           const msg: Msg = {
-            msgType: MsgType.InitDone,
+            msgType,
             from: 'sw',
             target: from
             // msgData: tinyFs
@@ -277,10 +278,10 @@ async function respond(event: FetchEvent) {
       const res = Babel.transform(text, {
         presets: ['jsx'],
         plugins: [
+          ['es6ImportAbsolute', { fs: appFsData[appName].fs, referrer: url.pathname }],
           url.search && !url.pathname.includes('/node_modules')
             ? ['es6ImportHash', { query: url.search }]
-            : null,
-          ['es6ImportAbsolute', { fs: appFsData[appName].fs, referrer: url.pathname }]
+            : null
           // ['workerTransform', { referPath: url.pathname }]
         ].filter(Boolean)
       });

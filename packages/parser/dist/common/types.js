@@ -9,6 +9,8 @@ export var MsgType;
     MsgType["GetFileContent"] = "GetFileContent";
     /**sw端通知web文件系统已经获取完毕 */
     MsgType["InitDone"] = "initDone";
+    /**文件系统更新 */
+    MsgType["Update"] = "Update";
     /**对之前请求的响应 */
     MsgType["Echo"] = "Echo";
     /**web端请求sw端计算绝对路径 */

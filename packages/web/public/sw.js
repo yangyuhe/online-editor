@@ -129722,27 +129722,6 @@ function commonAsync() {
 }
 babelExports.registerPlugin('commonAsync', commonAsync);
 
-function es6ImportHash() {
-    const visitor = {
-        ImportDeclaration(path, state) {
-            const val = path.node.source.value;
-            const query = state.opts.query;
-            if ((val.startsWith('./') || val.startsWith('../')) && !val.endsWith('.css')) {
-                path.node.source.value = val + query;
-            }
-        },
-        Import(path, state) {
-            const val = path.parent.arguments[0].value;
-            const query = state.opts.query;
-            if ((val.startsWith('./') || val.startsWith('../')) && !val.endsWith('.css')) {
-                path.parent.arguments[0].value = val + query;
-            }
-        }
-    };
-    return { visitor };
-}
-babelExports.registerPlugin('es6ImportHash', es6ImportHash);
-
 /**message类型 */
 var MsgType;
 (function (MsgType) {
@@ -129754,6 +129733,8 @@ var MsgType;
     MsgType["GetFileContent"] = "GetFileContent";
     /**sw端通知web文件系统已经获取完毕 */
     MsgType["InitDone"] = "initDone";
+    /**文件系统更新 */
+    MsgType["Update"] = "Update";
     /**对之前请求的响应 */
     MsgType["Echo"] = "Echo";
     /**web端请求sw端计算绝对路径 */
@@ -129765,6 +129746,27 @@ var PathPrefix;
     PathPrefix["NODE_MODULES"] = "/$$NODE_MODULES";
     PathPrefix["PUBLIC"] = "/$$PUBLIC";
 })(PathPrefix || (PathPrefix = {}));
+
+function es6ImportHash() {
+    const visitor = {
+        ImportDeclaration(path, state) {
+            const val = path.node.source.value;
+            const query = state.opts.query;
+            if (val.includes(PathPrefix.SRC) && !val.endsWith('.css')) {
+                path.node.source.value = val + query;
+            }
+        },
+        Import(path, state) {
+            const val = path.parent.arguments[0].value;
+            const query = state.opts.query;
+            if (val.includes(PathPrefix.SRC) && !val.endsWith('.css')) {
+                path.parent.arguments[0].value = val + query;
+            }
+        }
+    };
+    return { visitor };
+}
+babelExports.registerPlugin('es6ImportHash', es6ImportHash);
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 function findInMap(m, fn) {
@@ -130167,11 +130169,12 @@ channel.addEventListener('message', (evt) => {
                 const eventSource = new EventSource('/api/sse?project=' + appName);
                 eventSource.addEventListener('message', (event) => {
                     const fs = JSON.parse(event.data);
+                    const msgType = appFsData[appName].fs ? MsgType.Update : MsgType.InitDone;
                     appFsData[appName].fs = fs;
                     // const tinyFs = extractFromFsData(fs);
                     // appTinyFsData[appName] = tinyFs;
                     const msg = {
-                        msgType: MsgType.InitDone,
+                        msgType,
                         from: 'sw',
                         target: from
                         // msgData: tinyFs
@@ -130314,10 +130317,10 @@ async function respond(event) {
             const res = babelExports.transform(text, {
                 presets: ['jsx'],
                 plugins: [
+                    ['es6ImportAbsolute', { fs: appFsData[appName].fs, referrer: url.pathname }],
                     url.search && !url.pathname.includes('/node_modules')
                         ? ['es6ImportHash', { query: url.search }]
-                        : null,
-                    ['es6ImportAbsolute', { fs: appFsData[appName].fs, referrer: url.pathname }]
+                        : null
                     // ['workerTransform', { referPath: url.pathname }]
                 ].filter(Boolean)
             });

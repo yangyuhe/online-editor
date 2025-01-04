@@ -129737,27 +129737,6 @@ function commonAsync() {
 }
 babelExports.registerPlugin('commonAsync', commonAsync);
 
-function es6ImportHash() {
-    const visitor = {
-        ImportDeclaration(path, state) {
-            const val = path.node.source.value;
-            const query = state.opts.query;
-            if ((val.startsWith('./') || val.startsWith('../')) && !val.endsWith('.css')) {
-                path.node.source.value = val + query;
-            }
-        },
-        Import(path, state) {
-            const val = path.parent.arguments[0].value;
-            const query = state.opts.query;
-            if ((val.startsWith('./') || val.startsWith('../')) && !val.endsWith('.css')) {
-                path.parent.arguments[0].value = val + query;
-            }
-        }
-    };
-    return { visitor };
-}
-babelExports.registerPlugin('es6ImportHash', es6ImportHash);
-
 /**message类型 */
 var MsgType;
 (function (MsgType) {
@@ -129769,6 +129748,8 @@ var MsgType;
     MsgType["GetFileContent"] = "GetFileContent";
     /**sw端通知web文件系统已经获取完毕 */
     MsgType["InitDone"] = "initDone";
+    /**文件系统更新 */
+    MsgType["Update"] = "Update";
     /**对之前请求的响应 */
     MsgType["Echo"] = "Echo";
     /**web端请求sw端计算绝对路径 */
@@ -129780,6 +129761,27 @@ var PathPrefix;
     PathPrefix["NODE_MODULES"] = "/$$NODE_MODULES";
     PathPrefix["PUBLIC"] = "/$$PUBLIC";
 })(PathPrefix || (PathPrefix = {}));
+
+function es6ImportHash() {
+    const visitor = {
+        ImportDeclaration(path, state) {
+            const val = path.node.source.value;
+            const query = state.opts.query;
+            if (val.includes(PathPrefix.SRC) && !val.endsWith('.css')) {
+                path.node.source.value = val + query;
+            }
+        },
+        Import(path, state) {
+            const val = path.parent.arguments[0].value;
+            const query = state.opts.query;
+            if (val.includes(PathPrefix.SRC) && !val.endsWith('.css')) {
+                path.parent.arguments[0].value = val + query;
+            }
+        }
+    };
+    return { visitor };
+}
+babelExports.registerPlugin('es6ImportHash', es6ImportHash);
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 function findInMap(m, fn) {
@@ -130079,7 +130081,11 @@ channel.addEventListener('message', async (event) => {
             return;
         }
         if (msgType === MsgType.InitDone) {
-            onReadyResolve();
+            onReadyCallback('init');
+            return;
+        }
+        if (msgType === MsgType.Update) {
+            onReadyCallback('update');
             return;
         }
         if (msgType === MsgType.GetModule) {
@@ -130115,10 +130121,10 @@ channel.addEventListener('message', async (event) => {
         }
     }
 });
-let onReadyResolve;
-const onReady = new Promise((resolve) => {
-    onReadyResolve = resolve;
-});
+let onReadyCallback;
+const onReady = function (callbck) {
+    onReadyCallback = callbck;
+};
 registerServiceWorker();
 navigator.serviceWorker.ready.then(() => {
     console.log('ready', navigator.serviceWorker.controller);

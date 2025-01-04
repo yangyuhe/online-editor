@@ -39,6 +39,8 @@ export declare enum MsgType {
     GetFileContent = "GetFileContent",
     /**sw端通知web文件系统已经获取完毕 */
     InitDone = "initDone",
+    /**文件系统更新 */
+    Update = "Update",
     /**对之前请求的响应 */
     Echo = "Echo",
     /**web端请求sw端计算绝对路径 */

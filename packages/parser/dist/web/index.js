@@ -22,7 +22,11 @@ channel.addEventListener('message', async (event) => {
             return;
         }
         if (msgType === MsgType.InitDone) {
-            onReadyResolve();
+            onReadyCallback('init');
+            return;
+        }
+        if (msgType === MsgType.Update) {
+            onReadyCallback('update');
             return;
         }
         if (msgType === MsgType.GetModule) {
@@ -58,10 +62,10 @@ channel.addEventListener('message', async (event) => {
         }
     }
 });
-let onReadyResolve;
-export const onReady = new Promise((resolve) => {
-    onReadyResolve = resolve;
-});
+let onReadyCallback;
+export const onReady = function (callbck) {
+    onReadyCallback = callbck;
+};
 registerServiceWorker();
 navigator.serviceWorker.ready.then(() => {
     console.log('ready', navigator.serviceWorker.controller);
